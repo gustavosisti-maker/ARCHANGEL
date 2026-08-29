@@ -31,7 +31,7 @@ REPORT_JSON_PATH = BASE_JSON_DIR / '09_ROADMAP_STATUS_REPORT_LATEST.json'
 JSONS = [
     '00_RUN_ALL_REPORT_LATEST.json', '99_AI_CONTEXT_INDEX_LATEST.json', '00_RUN_STATE_LATEST.json',
     '00_01_MACHINE_PROFILE_LATEST.json', '00_02_PYTHON_ENVIRONMENT_LATEST.json', '00_03_BASE_ARQUIVOS_LATEST.json',
-    '01_MAPA_ATIVOS_LATEST.json', '01_CATALOGO_SERIES_LATEST.json',
+    '01_MAPA_ATIVOS_LATEST.json', '01_CATALOGO_SERIES_LATEST.json', '02_BUSCA_DADOS_RUN_REPORT_LATEST.json',
     '02_01_DATA_QUALITY_REPORT_LATEST.json', '02_01_DATA_QUALITY_ROOT_CAUSE_LATEST.json',
     '03_FEATURES_CATALOG_LATEST.json', '03_FEATURES_RUN_REPORT_LATEST.json', '03_01_FEATURES_CUDA_BENCHMARK_LATEST.json', '03_FEATURES_RETRY_PLAN_LATEST.json',
     '04_LABELS_CATALOG_LATEST.json', '04_LABELS_RUN_REPORT_LATEST.json',
@@ -165,7 +165,7 @@ def _module_jsons(script: str) -> list[str]:
         '00_03_MAPEAMENTO_DIRETORIOS.py': ['00_03_BASE_ARQUIVOS_LATEST.json'],
         '02_01_AUDITA_QUALIDADE_DADOS.py': ['02_01_DATA_QUALITY_REPORT_LATEST.json', '02_01_DATA_QUALITY_ROOT_CAUSE_LATEST.json'],
         '01_MAPA_ATIVOS.py': ['01_MAPA_ATIVOS_LATEST.json', '01_CATALOGO_SERIES_LATEST.json'],
-        '02_BUSCA_DADOS.py': ['01_MAPA_ATIVOS_LATEST.json', '00_03_BASE_ARQUIVOS_LATEST.json'],
+        '02_BUSCA_DADOS.py': ['02_BUSCA_DADOS_RUN_REPORT_LATEST.json', '01_CATALOGO_SERIES_LATEST.json', '01_MAPA_ATIVOS_LATEST.json', '00_03_BASE_ARQUIVOS_LATEST.json'],
         '03_GERA_FEATURES.py': ['03_FEATURES_CATALOG_LATEST.json', '03_FEATURES_RUN_REPORT_LATEST.json', '03_01_FEATURES_CUDA_BENCHMARK_LATEST.json'],
         '04_GERA_LABELS.py': ['04_LABELS_CATALOG_LATEST.json', '04_LABELS_RUN_REPORT_LATEST.json'],
         '05_MONTA_DATASETS_ML.py': ['05_DATASETS_ML_LATEST.json'],
@@ -181,7 +181,10 @@ def _module_note(script: str, data: dict[str, dict[str, Any]]) -> str:
         s = data['01_MAPA_ATIVOS_LATEST.json'].get('summary', {})
         return f"{fint(s.get('total_series_parquet_mapped'))} series; {fint(s.get('total_ohlcv_series'))} OHLCV; {fint(s.get('warning_series_count'))} com warning."
     if script == '02_BUSCA_DADOS.py':
-        return 'Sem run_report proprio dedicado; status inferido por inventario, mapa de ativos e arquivos parquet.'
+        s = data['02_BUSCA_DADOS_RUN_REPORT_LATEST.json'].get('summary', {})
+        if s:
+            return f"Status {s.get('status')}; {fint(s.get('series_ok'))} series OK; {fint(s.get('series_warning'))} warnings; {fint(s.get('series_error'))} erros; delta linhas {fint(s.get('total_row_delta_estimate'))}; HTTP {fint(s.get('http_requests_total'))}."
+        return 'Run_report dedicado ainda nao encontrado; status inferido por inventario, mapa de ativos e arquivos parquet.'
     if script == '03_GERA_FEATURES.py':
         s = data['03_FEATURES_CATALOG_LATEST.json'].get('summary', {})
         backend = nested(data['03_FEATURES_RUN_REPORT_LATEST.json'], 'summary', 'feature_compute_backend')
@@ -213,7 +216,7 @@ def _module_note(script: str, data: dict[str, dict[str, Any]]) -> str:
 def _module_change(script: str) -> str:
     return {
         '01_MAPA_ATIVOS.py': 'Adicionar classificacao MVP/experimental, mercado/exchange e regras de elegibilidade por serie.',
-        '02_BUSCA_DADOS.py': 'Criar JSON proprio de run: fontes chamadas, latencia, candles novos, retries, falhas por exchange e cobertura por ativo.',
+        '02_BUSCA_DADOS.py': 'Run_report dedicado implementado; proximo ajuste e calibrar telemetria por exchange, rate limits e Kraken/Bybit testnet quando o modulo de execucao nascer.',
         '03_GERA_FEATURES.py': 'Migrar blocos rolling caros para CUDA/CuPy com benchmark antes/depois e equivalencia numerica.',
         '04_GERA_LABELS.py': 'Adicionar labels por regime/custo/funding e validacao mais dura de anti-leakage.',
         '05_MONTA_DATASETS_ML.py': 'Separar datasets por familia de features e criar datasets de ablation controlados.',
@@ -225,7 +228,7 @@ def _module_change(script: str) -> str:
 
 
 def build_module_details(data: dict[str, dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    mapa = data['01_MAPA_ATIVOS_LATEST.json']; dq = data['02_01_DATA_QUALITY_REPORT_LATEST.json']; feat = data['03_FEATURES_CATALOG_LATEST.json']
+    mapa = data['01_MAPA_ATIVOS_LATEST.json']; fetch_report = data['02_BUSCA_DADOS_RUN_REPORT_LATEST.json']; dq = data['02_01_DATA_QUALITY_REPORT_LATEST.json']; feat = data['03_FEATURES_CATALOG_LATEST.json']
     labels = data['04_LABELS_CATALOG_LATEST.json']; ds = data['05_DATASETS_ML_LATEST.json']; wf = data['06_WALK_FORWARD_LATEST.json']
     bt = data['07_BACKTEST_PORTFOLIO_LATEST.json']; stress = data['07_BACKTEST_STRESS_LATEST.json']; reg = data['08_EXPERIMENT_REGISTRY_LATEST.json']
     run = data['00_RUN_ALL_REPORT_LATEST.json']
@@ -253,6 +256,22 @@ def build_module_details(data: dict[str, dict[str, Any]]) -> dict[str, list[dict
     fetch_rows = []
     for item in fetch.values():
         item['timeframes'] = ', '.join(sorted(item['timeframes'])); fetch_rows.append(item)
+    fetch_report_rows = []
+    for x in fetch_report.get('series_outputs', []) if isinstance(fetch_report.get('series_outputs'), list) else []:
+        if not isinstance(x, dict):
+            continue
+        fetch_report_rows.append({
+            'source': x.get('source'), 'asset': x.get('asset'), 'symbol': x.get('symbol'), 'dataset_kind': x.get('dataset_kind'),
+            'timeframe': x.get('timeframe'), 'custom_timeframe': x.get('custom_timeframe'), 'status': x.get('status'),
+            'old_rows': x.get('old_rows'), 'new_rows_downloaded_or_generated': x.get('new_rows_downloaded_or_generated') or x.get('new_rows_downloaded'), 'final_rows': x.get('final_rows'),
+            'row_delta_estimate': x.get('row_delta_estimate'), 'date_start': x.get('start'), 'date_end': x.get('end'),
+            'file_exists': x.get('file_exists'), 'file_size_mb': x.get('file_size_mb'), 'elapsed_seconds': x.get('elapsed_seconds'),
+            'gap_count_sampled': x.get('gap_count_sampled'), 'error_type': x.get('error_type'), 'error_message': x.get('error_message'),
+            'output_relative_path': x.get('output_relative_path'), 'output_path': x.get('output_path'),
+            'status_note': 'Run_report dedicado da etapa 02; auditar antes de qualidade/features.'
+        })
+    if fetch_report_rows:
+        fetch_rows = fetch_report_rows
     features_catalog = [{'feature': x.get('feature'), 'family': x.get('family'), 'type_feature': x.get('type_feature'), 'lookback': x.get('lookback'), 'uses_future_data': x.get('uses_future_data'), 'risk_relevance': x.get('risk_relevance'), 'ml_relevance': x.get('ml_relevance'), 'description': x.get('description'), 'formula': compact(x.get('formula'), 320)} for x in feat.get('feature_catalog', []) if isinstance(x, dict)]
     existing_families = Counter([str(x.get('family') or 'unknown') for x in feat.get('feature_catalog', []) if isinstance(x, dict)])
     feature_ideas = []
@@ -312,7 +331,7 @@ def build_module_details(data: dict[str, dict[str, Any]]) -> dict[str, list[dict
             for i, v in enumerate(obj): parameters.append({'source': source, 'parameter': f'item_{i+1}', 'value': compact(v, 700), 'meaning': note, 'can_change': 'Alterar somente com ablation e registro no registry.'})
 
     improvements = [
-        {'priority': 1, 'module': '02_BUSCA_DADOS.py', 'improvement': 'Criar run_report dedicado para coleta', 'why': 'Hoje a coleta e inferida por arquivos/series; falta telemetria de exchange, candles novos, retries e latencia.', 'risk_if_ignored': 'Codex e usuario nao conseguem auditar claramente falhas de dados.', 'status': 'pendente'},
+        {'priority': 1, 'module': '02_BUSCA_DADOS.py', 'improvement': 'Run_report dedicado para coleta', 'why': 'A coleta agora precisa permanecer auditavel por fonte, serie, linhas, arquivos, HTTP e falhas.', 'risk_if_ignored': 'Mudancas futuras em Bybit/Kraken/commodities podem esconder falhas de dados.', 'status': 'implementado'},
         {'priority': 2, 'module': '03_GERA_FEATURES.py', 'improvement': 'CUDA em blocos rolling caros', 'why': 'Ultimo run de features ainda mostra pandas_cpu; ha volume alto de matriz.', 'risk_if_ignored': 'Tempo alto limita iteracao e ablation.', 'status': 'proximo'},
         {'priority': 3, 'module': 'Features', 'improvement': 'Ablation por familias e features nao convencionais', 'why': 'Backtest atual e negativo; precisamos achar ou rejeitar edge com disciplina.', 'risk_if_ignored': 'Aumentar complexidade sem saber o que ajuda.', 'status': 'proximo'},
         {'priority': 4, 'module': '07_BACKTEST_PORTFOLIO.py', 'improvement': 'Calibrar microestrutura com dados reais', 'why': 'Slippage/funding assumidos sao bons para stress, mas devem convergir para dados por exchange.', 'risk_if_ignored': 'Backtest pode ficar distante da execucao real.', 'status': 'pendente'},
@@ -335,12 +354,12 @@ def assess() -> dict[str, Any]:
     data = {name: load_json(name) for name in JSONS}
     inv = inventory()
     run = data['00_RUN_ALL_REPORT_LATEST.json']
-    mapa = data['01_MAPA_ATIVOS_LATEST.json']; dq = data['02_01_DATA_QUALITY_REPORT_LATEST.json']
+    mapa = data['01_MAPA_ATIVOS_LATEST.json']; fetch_run = data['02_BUSCA_DADOS_RUN_REPORT_LATEST.json']; dq = data['02_01_DATA_QUALITY_REPORT_LATEST.json']
     feat = data['03_FEATURES_CATALOG_LATEST.json']; feat_run = data['03_FEATURES_RUN_REPORT_LATEST.json']
     labels = data['04_LABELS_CATALOG_LATEST.json']; ds = data['05_DATASETS_ML_LATEST.json']; wf = data['06_WALK_FORWARD_LATEST.json']
     bt = data['07_BACKTEST_PORTFOLIO_LATEST.json']; val = data['07_BACKTEST_VALIDATION_LATEST.json']; stress = data['07_BACKTEST_STRESS_LATEST.json']
     reg = data['08_EXPERIMENT_REGISTRY_LATEST.json']; pyenv = data['00_02_PYTHON_ENVIRONMENT_LATEST.json']; bench = data['03_01_FEATURES_CUDA_BENCHMARK_LATEST.json']
-    run_s = run.get('summary', {}); dq_s = dq.get('summary', {}); feat_s = feat.get('summary', {}); feat_run_s = feat_run.get('summary', {})
+    run_s = run.get('summary', {}); fetch_s = fetch_run.get('summary', {}); dq_s = dq.get('summary', {}); feat_s = feat.get('summary', {}); feat_run_s = feat_run.get('summary', {})
     label_s = labels.get('summary', {}); ds_s = ds.get('summary', {}); wf_s = wf.get('summary', {}); bt_s = bt.get('summary', {}); reg_s = reg.get('summary', {})
     run_time = mtime('00_RUN_ALL_REPORT_LATEST.json'); feat_time = max(mtime('03_FEATURES_CATALOG_LATEST.json'), mtime('03_FEATURES_RUN_REPORT_LATEST.json'))
     downstream = {'labels': mtime('04_LABELS_CATALOG_LATEST.json'), 'datasets': mtime('05_DATASETS_ML_LATEST.json'), 'walk_forward': mtime('06_WALK_FORWARD_LATEST.json'), 'backtest': mtime('07_BACKTEST_PORTFOLIO_LATEST.json'), 'registry': mtime('08_EXPERIMENT_REGISTRY_LATEST.json')}
@@ -356,10 +375,11 @@ def assess() -> dict[str, Any]:
     if max_dd is not None and abs(max_dd) > 0.08: red.append('Max drawdown observado ultrapassa a referência de 8%; isto bloqueia qualquer leitura otimista.')
     if bal is not None and bal < 0.55: red.append('Balanced accuracy média está apenas levemente acima de 50%; edge estatístico ainda é fraco.')
     if dq_s.get('ml_caution_series_count', 0): red.append('Muitas séries seguem em ML_CAUTION, principalmente por TIME_GAPS; isso contamina confiança nos resultados.')
+    if fetch_s.get('series_error', 0): red.append('A coleta da etapa 02 reporta séries com erro; auditar 02_BUSCA_DADOS_RUN_REPORT_LATEST.json antes de confiar em downstreams.')
     verdict = 'SNAPSHOT PARCIAL: AGUARDAR FIM DO 00_RUN_ALL ANTES DE DECIDIR' if newer else 'PESQUISA AVANÇOU, MAS NÃO HÁ SINAL ECONÔMICO APROVADO'
     stages = [
         ['Git/GitHub','OK','Repo local ligado ao origin/main e CI leve passou.','Repo é público; dados/JSONs/docx continuam fora.','Commits pequenos antes de mudanças grandes.'],
-        ['Dados','PARCIAL','{} séries mapeadas; {} OHLCV.'.format(fint(nested(mapa,'summary','total_series_parquet_mapped')), fint(nested(mapa,'summary','total_ohlcv_series'))),'Warnings e séries unknown ainda existem.','Isolar universo MVP.'],
+        ['Dados','AUDITÁVEL / VERIFICAR WARNINGS','{} séries mapeadas; {} OHLCV; coleta {}; delta linhas {}; erros {}.'.format(fint(nested(mapa,'summary','total_series_parquet_mapped')), fint(nested(mapa,'summary','total_ohlcv_series')), fetch_s.get('status'), fint(fetch_s.get('total_row_delta_estimate')), fint(fetch_s.get('series_error'))),'Warnings, gaps e séries unknown ainda existem; coleta OK não prova edge econômico.','Auditar 02_BUSCA_DADOS_RUN_REPORT_LATEST.json antes de features.'],
         ['Qualidade','USÁVEL COM CAUTELA','{} ML_READY, {} ML_CAUTION, {} ML_BLOCKED.'.format(fint(dq_s.get('ml_ready_series_count')), fint(dq_s.get('ml_caution_series_count')), fint(dq_s.get('ml_blocked_series_count'))),'TIME_GAPS é raiz dominante.','Priorizar séries realmente usadas.'],
         ['Features','OPERACIONAL','{} séries OK; {} features; backend atual {}.'.format(fint(feat_s.get('series_ok')), fint(feat_s.get('feature_catalog_count')), nested(feat_run_s,'feature_compute_backend','series_backend_counts')),'Último run de features aparece em CPU/pandas.','CUDA só com benchmark e fallback.'],
         ['Labels','OPERACIONAL/DEFASAGEM POSSÍVEL','{} séries; {} labels.'.format(fint(label_s.get('series_ok')), fint(label_s.get('labels_catalog_count'))),'Pode estar defasado se features acabou de atualizar.','Confirmar timestamps após o run.'],
@@ -372,13 +392,15 @@ def assess() -> dict[str, Any]:
     ]
     roadmap = [
         [1,'Manter DOCX/XLSX/JSON atualizados automaticamente ao fim de cada 00_RUN_ALL','A comunicação humana e IA precisa refletir o run final completo.','IMPLEMENTADO'],
-        [2,'Criar run_report dedicado para 02_BUSCA_DADOS.py','A coleta ainda não é tão auditável quanto as etapas 3 a 8.','PRÓXIMO'],
+        [2,'Manter run_report dedicado para 02_BUSCA_DADOS.py e enriquecer por exchange','A coleta agora é auditável; o próximo ganho é rate limit, latência e falhas segmentadas por conector.','IMPLEMENTADO / EVOLUIR'],
         [3,'Migrar CUDA controlado em rolling windows pesadas da etapa 3','Reduz tempo de iteração sem alterar a tese econômica.','PRÓXIMO'],
         [4,'Criar fila de hipóteses e ablação formal de features','O backtest atual é negativo; precisamos saber o que ajuda ou atrapalha.','PRÓXIMO'],
         [5,'Ligar testnet Bybit/Binance/Kraken Pro','Validar execução, latência e partial fill sem risco real.','DEPOIS'],
         [6,'Adaptar para futuros de commodities: coffee, cocoa, cotton','Exige vencimento, rolagem, curva, calendário e liquidez.','FUTURO'],
     ]
     params = [
+        ['fetch_run_status', fetch_s.get('status'), '02_BUSCA_DADOS_RUN_REPORT_LATEST', 'Status dedicado da coleta; não mede performance econômica.'],
+        ['fetch_total_row_delta_estimate', fetch_s.get('total_row_delta_estimate'), '02_BUSCA_DADOS_RUN_REPORT_LATEST', 'Delta de linhas baixadas/geradas no run da coleta.'],
         ['target_annual_return_min', bt_s.get('target_annual_return_min'), '07_BACKTEST_PORTFOLIO_LATEST', 'Alvo econômico mínimo; não é aprovação automática.'],
         ['reference_drawdown_limit', bt_s.get('reference_drawdown_limit'), '07_BACKTEST_PORTFOLIO_LATEST', 'Referência temporária de 8%.'],
         ['approval_status', bt_s.get('approval_status'), '07_BACKTEST_PORTFOLIO_LATEST', 'Pesquisa separada de aprovação.'],
@@ -387,7 +409,7 @@ def assess() -> dict[str, Any]:
         ['cuda_ready_for_pytorch', nested(pyenv,'summary','cuda_ready_for_pytorch'), '00_02_PYTHON_ENVIRONMENT_LATEST', 'Pronto para uso controlado.'],
         ['cuda_ready_for_cupy', nested(pyenv,'summary','cuda_ready_for_cupy'), '00_02_PYTHON_ENVIRONMENT_LATEST', 'Pronto para blocos selecionados.'],
     ]
-    return {'schema_version': SCHEMA_VERSION, 'system': {'name': 'ARCHANGEL', 'layer': 'ROADMAP_STATUS', 'script': SCRIPT_NAME, 'generated_at_utc': datetime.now(timezone.utc).isoformat(timespec='seconds')}, 'paths': {'docx_path': str(DOCX_PATH), 'xlsx_path': str(XLSX_PATH), 'report_json_path': str(REPORT_JSON_PATH), 'base_json_dir': str(BASE_JSON_DIR)}, 'summary': {'verdict': verdict, 'likely_run_in_progress_or_partial_snapshot': bool(newer), 'downstream_stale_after_features': stale, 'red_flags_count': len(red), 'pipeline_status_latest_completed': run_s.get('status'), 'features_ok': feat_s.get('series_ok'), 'labels_ok': label_s.get('series_ok'), 'datasets_ok': ds_s.get('datasets_ok'), 'walk_forward_experiments_ok': wf_s.get('experiments_ok'), 'walk_forward_avg_balanced_accuracy': wf_s.get('avg_balanced_accuracy'), 'portfolio_cagr': cagr, 'portfolio_total_return': total_ret, 'portfolio_max_drawdown': max_dd, 'formal_registry_status': reg_s.get('status'), 'formal_registry_rows': reg_s.get('registry_rows'), 'excel_detail_sheets_count': 20}, 'staleness': {'jsons_newer_than_last_run_all_report': newer, 'downstream_stale_after_features': stale}, 'red_flags': red, 'stage_assessment': [{'stage':r[0], 'status':r[1], 'evidence':r[2], 'risk':r[3], 'next_action':r[4]} for r in stages], 'roadmap': [{'priority':r[0], 'step':r[1], 'why':r[2], 'status':r[3]} for r in roadmap], 'parameters': [{'parameter':r[0], 'value':r[1], 'source':r[2], 'note':r[3]} for r in params], 'module_details': build_module_details(data), 'json_inventory': inv}
+    return {'schema_version': SCHEMA_VERSION, 'system': {'name': 'ARCHANGEL', 'layer': 'ROADMAP_STATUS', 'script': SCRIPT_NAME, 'generated_at_utc': datetime.now(timezone.utc).isoformat(timespec='seconds')}, 'paths': {'docx_path': str(DOCX_PATH), 'xlsx_path': str(XLSX_PATH), 'report_json_path': str(REPORT_JSON_PATH), 'base_json_dir': str(BASE_JSON_DIR)}, 'summary': {'verdict': verdict, 'likely_run_in_progress_or_partial_snapshot': bool(newer), 'downstream_stale_after_features': stale, 'red_flags_count': len(red), 'pipeline_status_latest_completed': run_s.get('status'), 'fetch_run_status': fetch_s.get('status'), 'fetch_series_error': fetch_s.get('series_error'), 'fetch_total_row_delta_estimate': fetch_s.get('total_row_delta_estimate'), 'features_ok': feat_s.get('series_ok'), 'labels_ok': label_s.get('series_ok'), 'datasets_ok': ds_s.get('datasets_ok'), 'walk_forward_experiments_ok': wf_s.get('experiments_ok'), 'walk_forward_avg_balanced_accuracy': wf_s.get('avg_balanced_accuracy'), 'portfolio_cagr': cagr, 'portfolio_total_return': total_ret, 'portfolio_max_drawdown': max_dd, 'formal_registry_status': reg_s.get('status'), 'formal_registry_rows': reg_s.get('registry_rows'), 'excel_detail_sheets_count': 20}, 'staleness': {'jsons_newer_than_last_run_all_report': newer, 'downstream_stale_after_features': stale}, 'red_flags': red, 'stage_assessment': [{'stage':r[0], 'status':r[1], 'evidence':r[2], 'risk':r[3], 'next_action':r[4]} for r in stages], 'roadmap': [{'priority':r[0], 'step':r[1], 'why':r[2], 'status':r[3]} for r in roadmap], 'parameters': [{'parameter':r[0], 'value':r[1], 'source':r[2], 'note':r[3]} for r in params], 'module_details': build_module_details(data), 'json_inventory': inv}
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -522,6 +544,8 @@ def build_xlsx(report):
     dashboard_rows = [
         ('Veredito', s.get('verdict'), 'Decisão executiva do snapshot'),
         ('Pipeline status', s.get('pipeline_status_latest_completed'), 'Último 00_RUN_ALL'),
+        ('Coleta status', s.get('fetch_run_status'), 'Run report dedicado da etapa 02'),
+        ('Coleta erros', s.get('fetch_series_error'), 'Séries com erro na coleta'),
         ('Features OK', s.get('features_ok'), 'Volume operacional de features'),
         ('Labels OK', s.get('labels_ok'), 'Targets gerados'),
         ('Datasets OK', s.get('datasets_ok'), 'Bases treináveis'),
@@ -542,7 +566,7 @@ def build_xlsx(report):
 
     rowsheet(wb,'00_Modulos_Python',['module','python_file','exists','last_modified','size_kb','purpose','last_run_status','elapsed_seconds','json_outputs','current_assessment','what_can_change'],details['modules'])
     rowsheet(wb,'1_Mapa_Ativos_Series',['series_id','asset','symbol','source','dataset_kind','timeframe','periodicity','date_start','date_end','rows','quality_status','ml_quality_status','root_cause','warnings','file'],details['assets_series'])
-    rowsheet(wb,'2_Busca_Dados_Status',['source','asset','symbol','dataset_kind','series_count','timeframes','rows_total','date_start','date_end','status_note'],details['data_fetch_status'])
+    rowsheet(wb,'2_Busca_Dados_Status',['source','asset','symbol','dataset_kind','timeframe','custom_timeframe','status','old_rows','new_rows_downloaded_or_generated','final_rows','row_delta_estimate','date_start','date_end','file_exists','file_size_mb','elapsed_seconds','gap_count_sampled','error_type','error_message','output_relative_path','output_path','status_note'],details['data_fetch_status'])
     rowsheet(wb,'3_Features_Catalogo',['feature','family','type_feature','lookback','uses_future_data','risk_relevance','ml_relevance','description','formula'],details['features_catalog'])
     rowsheet(wb,'3_Features_Series',['status','asset','symbol','source','timeframe','series_id','output_rows','output_columns','feature_columns_count','backend','quality_status','elapsed_seconds','memory_mb_start','memory_mb_end','output_path'],details['features_series'])
     rowsheet(wb,'3_Features_Ideias',['family_candidate','examples','priority','status_current','care','existing_feature_count_same_family'],details['features_ideas'])

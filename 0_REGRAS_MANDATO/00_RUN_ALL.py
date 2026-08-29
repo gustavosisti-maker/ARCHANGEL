@@ -290,6 +290,7 @@ def salvar_ai_context_index() -> None:
         resumir_json_base("00_03_BASE_ARQUIVOS_LATEST.json", "inventário físico do projeto", "Use para localizar arquivos e diretórios do sistema."),
         resumir_json_base("01_CATALOGO_SERIES_LATEST.json", "catálogo da etapa de dados", "Use para entender séries baixadas e integridade inicial."),
         resumir_json_base("01_MAPA_ATIVOS_LATEST.json", "mapa de ativos e universo", "Use para entender ativos, fontes, timeframes e arquivos Parquet."),
+        resumir_json_base("02_BUSCA_DADOS_RUN_REPORT_LATEST.json", "run report dedicado da coleta", "Use para auditar fontes chamadas, séries, candles novos, retries HTTP, falhas e arquivos gravados."),
         resumir_json_base("02_01_DATA_QUALITY_REPORT_LATEST.json", "qualidade dos dados", "Use antes de features/datasets para entender bloqueios e cautelas ML."),
         resumir_json_base("02_01_DATA_QUALITY_ROOT_CAUSE_LATEST.json", "triagem de causa-raiz", "Use para priorizar correções de qualidade."),
         resumir_json_base("03_FEATURES_CATALOG_LATEST.json", "manifesto de features", "Use para entender feature store, famílias, outputs e governança anti-leakage."),
@@ -311,6 +312,7 @@ def salvar_ai_context_index() -> None:
     ]
 
     run_all = carregar_json_base("00_RUN_ALL_REPORT_LATEST.json")
+    fetch_run = carregar_json_base("02_BUSCA_DADOS_RUN_REPORT_LATEST.json")
     q = carregar_json_base("02_01_DATA_QUALITY_REPORT_LATEST.json")
     features = carregar_json_base("03_FEATURES_CATALOG_LATEST.json")
     labels = carregar_json_base("04_LABELS_CATALOG_LATEST.json")
@@ -347,6 +349,8 @@ def salvar_ai_context_index() -> None:
             "00_01_MACHINE_PROFILE_LATEST.json",
             "00_02_PYTHON_ENVIRONMENT_LATEST.json",
             "01_MAPA_ATIVOS_LATEST.json",
+            "01_CATALOGO_SERIES_LATEST.json",
+            "02_BUSCA_DADOS_RUN_REPORT_LATEST.json",
             "02_01_DATA_QUALITY_REPORT_LATEST.json",
             "03_FEATURES_CATALOG_LATEST.json",
             "03_FEATURES_RUN_REPORT_LATEST.json",
@@ -367,6 +371,14 @@ def salvar_ai_context_index() -> None:
             "stages_ok": ((run_all.get("summary") or {}).get("stages_ok") if isinstance(run_all, dict) else None),
             "stages_error": ((run_all.get("summary") or {}).get("stages_error") if isinstance(run_all, dict) else None),
             "total_mapped_series": ((q.get("summary") or {}).get("total_series") if isinstance(q, dict) else None),
+            "fetch_run_status": ((fetch_run.get("summary") or {}).get("status") if isinstance(fetch_run, dict) else None),
+            "fetch_series_ok": ((fetch_run.get("summary") or {}).get("series_ok") if isinstance(fetch_run, dict) else None),
+            "fetch_series_warning": ((fetch_run.get("summary") or {}).get("series_warning") if isinstance(fetch_run, dict) else None),
+            "fetch_series_error": ((fetch_run.get("summary") or {}).get("series_error") if isinstance(fetch_run, dict) else None),
+            "fetch_total_new_rows": ((fetch_run.get("summary") or {}).get("total_new_rows_downloaded_or_generated") if isinstance(fetch_run, dict) else None),
+            "fetch_total_row_delta_estimate": ((fetch_run.get("summary") or {}).get("total_row_delta_estimate") if isinstance(fetch_run, dict) else None),
+            "fetch_elapsed_seconds": ((fetch_run.get("summary") or {}).get("elapsed_seconds") if isinstance(fetch_run, dict) else None),
+            "fetch_http_requests_total": ((fetch_run.get("summary") or {}).get("http_requests_total") if isinstance(fetch_run, dict) else None),
             "ml_ready_series": ((q.get("summary") or {}).get("ml_ready_series_count") if isinstance(q, dict) else None),
             "ml_caution_series": ((q.get("summary") or {}).get("ml_caution_series_count") if isinstance(q, dict) else None),
             "ml_blocked_series": ((q.get("summary") or {}).get("ml_blocked_series_count") if isinstance(q, dict) else None),
@@ -429,6 +441,7 @@ def salvar_ai_context_index() -> None:
         "files": files,
         "recommendations_for_codex": [
             "Use os arquivos *_LATEST.json no BASE_JSON para estado atual; histórico por execução fica nos diretórios _logs.",
+            "Use 02_BUSCA_DADOS_RUN_REPORT_LATEST.json para auditar coleta, cobertura, arquivos gravados e falhas HTTP antes da qualidade de dados.",
             "Use 05_DATASETS_ML_LATEST.allowed_feature_columns como fonte autorizada de features para treino.",
             "Nunca use colunas label_, meta_ ou quality_ como features, salvo metadados explicitamente permitidos pelo manifesto.",
             "Trate ML_CAUTION_ACCEPTABLE como treinável com registro explícito e ML_BLOCKED como bloqueio.",

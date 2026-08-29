@@ -53,6 +53,7 @@ import time
 import random
 import logging
 import hashlib
+from collections import Counter
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
@@ -94,7 +95,11 @@ SCRIPT_NAME = "02_BUSCA_DADOS.py"
 SYSTEM_NAME = "ARCHANGEL"
 SYSTEM_VERSION = "v1"
 RUN_STATE_SCHEMA_VERSION = "ARCHANGEL_RUN_STATE_1.0"
+FETCH_RUN_REPORT_SCHEMA_VERSION = "ARCHANGEL_FETCH_RUN_REPORT_1.0"
 RUN_ID = datetime.now().strftime("%Y%m%d_%H%M%S")
+FETCH_LOG_DIR = Path(BASE_DATA_DIR) / "_logs"
+FETCH_RUN_REPORT_PATH = FETCH_LOG_DIR / f"02_BUSCA_DADOS_RUN_REPORT_{RUN_ID}.json"
+FETCH_RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "02_BUSCA_DADOS_RUN_REPORT_LATEST.json"
 
 TIMEZONE_LOCAL = "Asia/Dubai"
 
@@ -814,6 +819,82 @@ def file_modified_at(path: str | Path) -> Optional[str]:
         return None
 
 
+def safe_int(value: Any, default: int = 0) -> int:
+    try:
+        if value is None or (isinstance(value, float) and np.isnan(value)):
+            return default
+        return int(value)
+    except Exception:
+        return default
+
+
+def safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return default
+        out = float(value)
+        return out if out == out else default
+    except Exception:
+        return default
+
+
+def counter_by(records: List[Dict[str, Any]], key: str) -> Dict[str, int]:
+    return dict(sorted(Counter(str(r.get(key) or "UNKNOWN") for r in records).items()))
+
+
+def safe_relative_to_project(path_value: Any) -> Optional[str]:
+    if not path_value:
+        return None
+    try:
+        return safe_relative_path(Path(str(path_value)), PROJECT_ROOT)
+    except Exception:
+        return str(path_value)
+
+
+def build_fetch_series_outputs(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    outputs: List[Dict[str, Any]] = []
+    for record in sorted(records, key=lambda r: (str(r.get("source")), str(r.get("asset")), str(r.get("dataset_kind")), str(r.get("timeframe")))):
+        path_value = record.get("path")
+        path_obj = Path(str(path_value)) if path_value else None
+        old_rows = safe_int(record.get("old_rows"))
+        final_rows = safe_int(record.get("rows"))
+        new_rows = safe_int(record.get("new_rows"), safe_int(record.get("rows")))
+        row_delta = record.get("row_delta_estimate")
+        if row_delta is None:
+            row_delta = max(0, final_rows - old_rows) if old_rows or final_rows else None
+        outputs.append({
+            "dataset_kind": record.get("dataset_kind"),
+            "source": record.get("source"),
+            "asset": record.get("asset"),
+            "symbol": record.get("symbol"),
+            "timeframe": record.get("timeframe"),
+            "custom_timeframe": bool(record.get("custom_timeframe")),
+            "created_from": record.get("created_from"),
+            "generated_locally_from_1min": bool(record.get("generated_locally_from_1min")),
+            "status": record.get("status"),
+            "old_rows": old_rows,
+            "new_rows_downloaded_or_generated": new_rows,
+            "new_rows_downloaded": new_rows,
+            "final_rows": final_rows,
+            "row_delta_estimate": row_delta,
+            "start": record.get("start"),
+            "end": record.get("end"),
+            "duplicates": record.get("duplicates"),
+            "gap_count_sampled": record.get("gap_count_sampled"),
+            "has_bad_ohlc": record.get("has_bad_ohlc"),
+            "sample_hash": record.get("sample_hash"),
+            "elapsed_seconds": record.get("elapsed_seconds"),
+            "error_type": record.get("error_type"),
+            "error_message": record.get("error_message"),
+            "file_exists": bool(path_obj and path_obj.is_file()),
+            "file_size_mb": file_size_mb(path_obj) if path_obj else None,
+            "file_modified_at": file_modified_at(path_obj) if path_obj else None,
+            "output_path": str(path_obj) if path_obj else None,
+            "output_relative_path": safe_relative_to_project(path_obj) if path_obj else None,
+        })
+    return outputs
+
+
 def safe_relative_path(path: str | Path, base: str | Path) -> str:
     try:
         return str(Path(path).resolve().relative_to(Path(base).resolve()))
@@ -871,6 +952,12 @@ class PathManager:
     def run_state_path(self) -> Path:
         return BASE_JSON_DIR / "00_RUN_STATE_LATEST.json"
 
+    def fetch_run_report_latest_path(self) -> Path:
+        return FETCH_RUN_REPORT_LATEST_PATH
+
+    def fetch_run_report_path(self) -> Path:
+        return FETCH_RUN_REPORT_PATH
+
     def diagnostics_path(self) -> Path:
         return self.diagnostics / f"DIAGNOSTICO_{datetime.now().strftime('%Y%m%d_%H%M%S')}.parquet"
 
@@ -882,6 +969,38 @@ class PathManager:
 class HttpClient:
     def __init__(self):
         self._local = local()
+        self.telemetry_lock = Lock()
+        self.telemetry: Dict[str, Any] = {
+            "requests_total": 0,
+            "responses_total": 0,
+            "retryable_status_counts": {},
+            "status_counts": {},
+            "exceptions_total": 0,
+            "final_failures_total": 0,
+            "retry_sleep_seconds": 0.0,
+        }
+
+    def _record_attempt(self, status_code: Optional[int] = None, retryable: bool = False, exception: Optional[Exception] = None, retry_sleep: float = 0.0, final_failure: bool = False, count_request: bool = True) -> None:
+        with self.telemetry_lock:
+            if count_request:
+                self.telemetry["requests_total"] = safe_int(self.telemetry.get("requests_total")) + 1
+            if status_code is not None:
+                self.telemetry["responses_total"] = safe_int(self.telemetry.get("responses_total")) + 1
+                status_key = str(status_code)
+                status_counts = self.telemetry.setdefault("status_counts", {})
+                status_counts[status_key] = safe_int(status_counts.get(status_key)) + 1
+                if retryable:
+                    retry_counts = self.telemetry.setdefault("retryable_status_counts", {})
+                    retry_counts[status_key] = safe_int(retry_counts.get(status_key)) + 1
+            if exception is not None:
+                self.telemetry["exceptions_total"] = safe_int(self.telemetry.get("exceptions_total")) + 1
+            if final_failure:
+                self.telemetry["final_failures_total"] = safe_int(self.telemetry.get("final_failures_total")) + 1
+            self.telemetry["retry_sleep_seconds"] = round(safe_float(self.telemetry.get("retry_sleep_seconds")) + float(retry_sleep or 0.0), 6)
+
+    def telemetry_summary(self) -> Dict[str, Any]:
+        with self.telemetry_lock:
+            return json.loads(json.dumps(self.telemetry, default=str))
 
     def _session(self) -> requests.Session:
         session = getattr(self._local, "session", None)
@@ -902,11 +1021,14 @@ class HttpClient:
         last_exc = None
 
         for attempt in range(1, RETRY_ATTEMPTS + 1):
+            response_counted = False
             try:
                 r = self._session().get(url, params=params, timeout=REQUEST_TIMEOUT)
 
                 if r.status_code in [418, 429, 500, 502, 503, 504]:
                     wait = max(RETRY_SLEEP_BASE * attempt, 2.0)
+                    self._record_attempt(status_code=r.status_code, retryable=True, retry_sleep=wait)
+                    response_counted = True
                     logging.warning(
                         f"Rate/Server issue {r.status_code} | "
                         f"attempt={attempt}/{RETRY_ATTEMPTS} | sleep={wait:.1f}s | "
@@ -915,18 +1037,22 @@ class HttpClient:
                     time.sleep(wait)
                     continue
 
+                self._record_attempt(status_code=r.status_code)
+                response_counted = True
                 r.raise_for_status()
                 return r.json()
 
             except Exception as e:
                 last_exc = e
                 wait = RETRY_SLEEP_BASE * attempt
+                self._record_attempt(exception=e, retry_sleep=wait, count_request=not response_counted)
                 logging.warning(
                     f"HTTP fail attempt {attempt}/{RETRY_ATTEMPTS}: {e} | "
                     f"sleep={wait:.1f}s | url={url} | params={params}"
                 )
                 time.sleep(wait)
 
+        self._record_attempt(final_failure=True, count_request=False)
         raise RuntimeError(f"HTTP failed after retries: {url} | {last_exc}")
 
 
@@ -1774,6 +1900,10 @@ class ArchangelCryptoDataEngine:
             "has_bad_ohlc": check["has_bad_ohlc"],
             "sample_hash": check["sample_hash"],
             "timezone": TIMEZONE_LOCAL,
+            "elapsed_seconds": round(time.time() - t0, 6),
+            "row_delta_estimate": max(0, int(check["rows"] or 0) - int(old_rows or 0)),
+            "file_size_mb": file_size_mb(path),
+            "file_modified_at": file_modified_at(path),
         })
 
         logging.info(
@@ -1831,6 +1961,10 @@ class ArchangelCryptoDataEngine:
             "has_bad_ohlc": check["has_bad_ohlc"],
             "sample_hash": check["sample_hash"],
             "timezone": TIMEZONE_LOCAL,
+            "new_rows": int(check["rows"] or 0),
+            "elapsed_seconds": round(time.time() - t0, 6),
+            "file_size_mb": file_size_mb(out_path),
+            "file_modified_at": file_modified_at(out_path),
         })
 
         logging.info(
@@ -1913,6 +2047,10 @@ class ArchangelCryptoDataEngine:
                     "has_bad_ohlc": check["has_bad_ohlc"],
                     "sample_hash": check["sample_hash"],
                     "timezone": TIMEZONE_LOCAL,
+                    "new_rows": int(check["rows"] or 0),
+                    "elapsed_seconds": round(time.time() - tf_t0, 6),
+                    "file_size_mb": file_size_mb(out_path),
+                    "file_modified_at": file_modified_at(out_path),
                 })
 
                 logging.info(
@@ -1925,6 +2063,18 @@ class ArchangelCryptoDataEngine:
             except Exception as e:
                 logging.exception(
                     f"[CUSTOM FAST ERROR] {source} | {asset} | {symbol} | {target_tf}: {e}"
+                )
+                self.record_processing_error(
+                    "ohlcv",
+                    source,
+                    asset,
+                    symbol,
+                    target_tf,
+                    "custom_fast_resample",
+                    e,
+                    custom_timeframe=target_tf not in NATIVE_TIMEFRAMES,
+                    path=self.paths.ohlcv_path(source, asset, symbol, target_tf, custom=target_tf not in NATIVE_TIMEFRAMES),
+                    elapsed_seconds=round(time.time() - tf_t0, 6),
                 )
 
         logging.info(
@@ -1974,6 +2124,10 @@ class ArchangelCryptoDataEngine:
             "status": check["status"],
             "timezone": TIMEZONE_LOCAL,
             "notes": "Bybit funding history. Frequency usually 8h depending on instrument.",
+            "elapsed_seconds": round(time.time() - t0, 6),
+            "row_delta_estimate": max(0, int(check["rows"] or 0) - int(old_rows or 0)),
+            "file_size_mb": file_size_mb(path),
+            "file_modified_at": file_modified_at(path),
         })
 
         logging.info(
@@ -2020,6 +2174,10 @@ class ArchangelCryptoDataEngine:
             "end": check["end"],
             "status": check["status"],
             "timezone": TIMEZONE_LOCAL,
+            "elapsed_seconds": round(time.time() - t0, 6),
+            "row_delta_estimate": max(0, int(check["rows"] or 0) - int(old_rows or 0)),
+            "file_size_mb": file_size_mb(path),
+            "file_modified_at": file_modified_at(path),
         })
 
         logging.info(
@@ -2064,6 +2222,7 @@ class ArchangelCryptoDataEngine:
                     base_1min_df = merged
             except Exception as e:
                 logging.exception(f"[ERROR] Binance OHLCV | {asset} | {tf}: {e}")
+                self.record_processing_error("ohlcv", source, asset, symbol, tf, "binance_native_download", e, custom_timeframe=False, path=self.paths.ohlcv_path(source, asset, symbol, tf, custom=False))
 
         if ENABLE_FAST_CUSTOM_TIMEFRAMES:
             resample_targets = [
@@ -2083,6 +2242,7 @@ class ArchangelCryptoDataEngine:
                     self.process_custom_ohlcv(source, asset, symbol, tf)
                 except Exception as e:
                     logging.exception(f"[ERROR] Binance custom OHLCV | {asset} | {tf}: {e}")
+                    self.record_processing_error("ohlcv", source, asset, symbol, tf, "binance_custom_resample", e, custom_timeframe=True, path=self.paths.ohlcv_path(source, asset, symbol, tf, custom=True))
 
         logging.info(f"[SOURCE FINISH] {asset_no}/{total_assets} | {asset} | {source} | {symbol}")
 
@@ -2104,6 +2264,7 @@ class ArchangelCryptoDataEngine:
                 self.process_ohlcv_source(source, asset, symbol, tf)
             except Exception as e:
                 logging.exception(f"[ERROR] Bybit OHLCV | {asset} | {tf}: {e}")
+                self.record_processing_error("ohlcv", source, asset, symbol, tf, "bybit_native_download", e, custom_timeframe=False, path=self.paths.ohlcv_path(source, asset, symbol, tf, custom=False))
 
         if ENABLE_FAST_CUSTOM_TIMEFRAMES:
             self.process_all_custom_ohlcv_fast(source, asset, symbol)
@@ -2113,12 +2274,14 @@ class ArchangelCryptoDataEngine:
                     self.process_custom_ohlcv(source, asset, symbol, tf)
                 except Exception as e:
                     logging.exception(f"[ERROR] Bybit custom OHLCV | {asset} | {tf}: {e}")
+                    self.record_processing_error("ohlcv", source, asset, symbol, tf, "bybit_custom_resample", e, custom_timeframe=True, path=self.paths.ohlcv_path(source, asset, symbol, tf, custom=True))
 
         if ENABLE_BYBIT_FUNDING:
             try:
                 self.process_bybit_funding(asset, symbol)
             except Exception as e:
                 logging.exception(f"[ERROR] Bybit funding | {asset}: {e}")
+                self.record_processing_error("funding_rate", source, asset, symbol, "event_based_8h_usually", "bybit_funding_download", e, path=self.paths.metric_path("funding_rate", source, asset, symbol))
 
         if ENABLE_BYBIT_OPEN_INTEREST:
             try:
@@ -2129,12 +2292,214 @@ class ArchangelCryptoDataEngine:
                 )
             except Exception as e:
                 logging.exception(f"[ERROR] Bybit OI | {asset}: {e}")
+                self.record_processing_error("open_interest", source, asset, symbol, BYBIT_OPEN_INTEREST_TIMEFRAME, "bybit_open_interest_download", e, path=self.paths.metric_path(f"open_interest_{BYBIT_OPEN_INTEREST_TIMEFRAME}", source, asset, symbol))
 
         logging.info(f"[SOURCE FINISH] {asset_no}/{total_assets} | {asset} | {source} | {symbol}")
 
     # -------------------------------------------------------------------------
     # CATALOG / DIAGNOSTICS
     # -------------------------------------------------------------------------
+
+    def record_processing_error(
+        self,
+        dataset_kind: str,
+        source: str,
+        asset: str,
+        symbol: str,
+        timeframe: str,
+        stage: str,
+        error: Exception,
+        custom_timeframe: Optional[bool] = None,
+        path: Optional[Path] = None,
+        elapsed_seconds: Optional[float] = None,
+    ) -> None:
+        error_type = type(error).__name__
+        error_message = str(error)
+        self.add_catalog_record({
+            "dataset_kind": dataset_kind,
+            "source": source,
+            "asset": asset,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "custom_timeframe": custom_timeframe,
+            "path": str(path) if path else None,
+            "rows": 0,
+            "new_rows": 0,
+            "status": "ERROR",
+            "error_stage": stage,
+            "error_type": error_type,
+            "error_message": error_message[:2000],
+            "elapsed_seconds": elapsed_seconds,
+            "timezone": TIMEZONE_LOCAL,
+        })
+
+    def save_run_report(self, elapsed_seconds: float, run_status: str = "OK", fatal_error: Optional[str] = None) -> Path:
+        with self.catalog_lock:
+            records_snapshot = list(self.catalog_records)
+
+        status_counts = counter_by(records_snapshot, "status")
+        error_records = [r for r in records_snapshot if str(r.get("status") or "").startswith("ERROR")]
+        warning_records = [r for r in records_snapshot if (r.get("status") not in ["OK", None] and not str(r.get("status") or "").startswith("ERROR"))]
+        series_outputs = build_fetch_series_outputs(records_snapshot)
+        file_outputs = [x for x in series_outputs if x.get("output_path")]
+        files_existing = [x for x in file_outputs if x.get("file_exists")]
+        total_old_rows = sum(safe_int(r.get("old_rows")) for r in records_snapshot)
+        total_new_rows = sum(safe_int(r.get("new_rows")) for r in records_snapshot)
+        total_final_rows = sum(safe_int(r.get("rows")) for r in records_snapshot)
+        total_delta = sum(safe_int(x.get("row_delta_estimate")) for x in series_outputs if x.get("row_delta_estimate") is not None)
+        http_summary = self.http.telemetry_summary()
+        normalized_run_status = str(run_status or "OK").upper()
+        snapshot_mode = normalized_run_status.startswith("SNAPSHOT")
+        if snapshot_mode:
+            run_report_status = "SNAPSHOT_WITH_ERRORS" if error_records else ("SNAPSHOT_WITH_WARNINGS" if warning_records else "SNAPSHOT")
+        elif normalized_run_status.startswith("INTERRUPTED"):
+            run_report_status = "INTERRUPTED_WITH_ERRORS" if error_records else "INTERRUPTED"
+        elif normalized_run_status in ["OK", "SUCCESS"]:
+            run_report_status = "ERROR" if error_records else ("OK_WITH_WARNINGS" if warning_records else "OK")
+        else:
+            run_report_status = "ERROR" if (error_records or fatal_error) else normalized_run_status
+
+        payload = {
+            "schema_version": FETCH_RUN_REPORT_SCHEMA_VERSION,
+            "generated_at": datetime.now().isoformat(),
+            "run_id": RUN_ID,
+            "report_scope": "snapshot_from_existing_catalog_no_fetch" if snapshot_mode else "full_fetch_run",
+            "script": SCRIPT_NAME,
+            "system": {
+                "name": SYSTEM_NAME,
+                "version": SYSTEM_VERSION,
+                "layer": "02_BUSCA_DADOS",
+                "script": SCRIPT_NAME,
+                "run_id": RUN_ID,
+                "generated_at": datetime.now().isoformat(),
+            },
+            "summary": {
+                "status": run_report_status,
+                "run_status_raw": run_status,
+                "snapshot_from_existing_catalog_no_fetch": snapshot_mode,
+                "new_rows_are_from_loaded_catalog_snapshot": snapshot_mode,
+                "snapshot_note": "Este arquivo foi gerado sem chamar APIs externas; campos de linhas novas/delta refletem o catalogo carregado, nao uma coleta fresca." if snapshot_mode else None,
+                "fatal_error": fatal_error,
+                "elapsed_seconds": round(float(elapsed_seconds or 0.0), 6),
+                "elapsed_human": format_seconds(elapsed_seconds),
+                "assets_configured": len(SYMBOLS),
+                "assets_with_records": len({r.get("asset") for r in records_snapshot if r.get("asset")}),
+                "series_attempted_or_generated": len(records_snapshot),
+                "series_ok": sum(1 for r in records_snapshot if r.get("status") == "OK"),
+                "series_warning": len(warning_records),
+                "series_error": len(error_records),
+                "warnings": len(warning_records),
+                "total_old_rows_before_update": int(total_old_rows),
+                "total_new_rows_downloaded_or_generated": int(total_new_rows),
+                "total_final_rows_after_update": int(total_final_rows),
+                "total_row_delta_estimate": int(total_delta),
+                "files_reported": len(file_outputs),
+                "files_existing": len(files_existing),
+                "total_file_size_mb": round(sum(safe_float(x.get("file_size_mb")) for x in files_existing), 6),
+                "status_counts": status_counts,
+                "dataset_kind_counts": counter_by(records_snapshot, "dataset_kind"),
+                "source_counts": counter_by(records_snapshot, "source"),
+                "asset_counts": counter_by(records_snapshot, "asset"),
+                "timeframe_counts": counter_by(records_snapshot, "timeframe"),
+                "http_requests_total": safe_int(http_summary.get("requests_total")),
+                "http_responses_total": safe_int(http_summary.get("responses_total")),
+                "http_retryable_status_counts": http_summary.get("retryable_status_counts"),
+                "http_status_counts": http_summary.get("status_counts"),
+                "http_exceptions_total": safe_int(http_summary.get("exceptions_total")),
+                "http_final_failures_total": safe_int(http_summary.get("final_failures_total")),
+                "http_retry_sleep_seconds": safe_float(http_summary.get("retry_sleep_seconds")),
+            },
+            "paths": {
+                "project_root": str(PROJECT_ROOT),
+                "base_data_dir": BASE_DATA_DIR,
+                "base_json_dir": str(BASE_JSON_DIR),
+                "catalog_path": str(self.paths.catalog_path()),
+                "run_state_path": str(self.paths.run_state_path()),
+                "run_report_path": str(self.paths.fetch_run_report_path()),
+                "run_report_latest_path": str(self.paths.fetch_run_report_latest_path()),
+                "diagnostics_dir": str(self.paths.diagnostics),
+            },
+            "config": {
+                "sources_enabled": {
+                    "binance_spot": ENABLE_BINANCE_SPOT,
+                    "bybit_linear": ENABLE_BYBIT_LINEAR,
+                    "bybit_funding": ENABLE_BYBIT_FUNDING,
+                    "bybit_open_interest": ENABLE_BYBIT_OPEN_INTEREST,
+                    "kraken_pro": False,
+                    "live_trading": False,
+                },
+                "download_window": {
+                    "download_start_utc": DOWNLOAD_START_UTC,
+                    "download_until_now": DOWNLOAD_UNTIL_NOW,
+                    "download_end_utc": DOWNLOAD_END_UTC,
+                    "use_incremental_update": USE_INCREMENTAL_UPDATE,
+                    "incremental_overlap_bars": INCREMENTAL_OVERLAP_BARS,
+                    "max_total_bars_per_series": MAX_TOTAL_BARS_PER_SERIES,
+                },
+                "timeframes": {
+                    "native_timeframes": NATIVE_TIMEFRAMES,
+                    "custom_timeframes": CUSTOM_TIMEFRAMES,
+                    "binance_native_timeframes_to_download": BINANCE_NATIVE_TIMEFRAMES_TO_DOWNLOAD,
+                    "resample_from_1min_timeframes": RESAMPLE_FROM_1MIN_TIMEFRAMES,
+                    "enable_fast_custom_timeframes": ENABLE_FAST_CUSTOM_TIMEFRAMES,
+                    "bybit_open_interest_timeframe": BYBIT_OPEN_INTEREST_TIMEFRAME,
+                },
+                "performance": {
+                    "enable_parallel_downloads": ENABLE_PARALLEL_DOWNLOADS,
+                    "max_workers_download": MAX_WORKERS_DOWNLOAD,
+                    "http_sleep_between_batches": HTTP_SLEEP_BETWEEN_BATCHES,
+                    "http_pool_connections": HTTP_POOL_CONNECTIONS,
+                    "http_pool_maxsize": HTTP_POOL_MAXSIZE,
+                    "request_timeout_seconds": REQUEST_TIMEOUT,
+                    "retry_attempts": RETRY_ATTEMPTS,
+                    "retry_sleep_base_seconds": RETRY_SLEEP_BASE,
+                    "parquet_engine": PARQUET_ENGINE,
+                    "parquet_compression": PARQUET_COMPRESSION,
+                },
+                "integrity_policy": {
+                    "atomic_parquet_save": True,
+                    "atomic_json_save": True,
+                    "deduplicate_by_timestamp_utc_ms": True,
+                    "sample_integrity_check": True,
+                    "sample_check_rows": SAMPLE_CHECK_ROWS,
+                    "bar_timestamp_policy": BAR_TIMESTAMP_POLICY,
+                    "timezone_local": TIMEZONE_LOCAL,
+                },
+            },
+            "hardware_efficiency": {
+                "current_mode": "parallel_by_asset_source" if ENABLE_PARALLEL_DOWNLOADS else "sequential",
+                "worker_policy": "I/O-bound download parallelism; do not use CUDA for raw HTTP collection.",
+                "cpu_gpu_note": "CUDA deve ser usada em features/treino/backtest vetorizado, não na coleta HTTP. Etapa 2 prioriza I/O, atomicidade e integridade temporal.",
+                "future_scaling_note": "Ao adicionar Bybit/Kraken/commodities, limitar paralelismo por exchange e respeitar rate limits antes de aumentar workers.",
+            },
+            "realism_and_governance": {
+                "target_annual_return_min_liquid": 0.20,
+                "drawdown_must_be_controlled": True,
+                "no_live_trading_in_this_stage": True,
+                "testnet_before_live": True,
+                "anti_overoptimism": "Este relatório mede qualidade, cobertura e falhas da coleta. Ele não é evidência de edge, CAGR ou aprovação operacional.",
+                "downstream_requirements": [
+                    "Rodar 01_MAPA_ATIVOS.py após coleta para atualizar universo real.",
+                    "Rodar 02_01_AUDITA_QUALIDADE_DADOS.py antes de features para expor gaps e bloqueios ML.",
+                    "Interpretar CAGR/drawdown somente nas etapas 7/8, com custos e stress.",
+                ],
+            },
+            "http_telemetry": http_summary,
+            "series_outputs": series_outputs,
+            "failures": [x for x in series_outputs if str(x.get("status") or "").startswith("ERROR")],
+            "warnings": [x for x in series_outputs if x.get("status") not in ["OK", None] and not str(x.get("status") or "").startswith("ERROR")],
+            "ai_reading_hints": [
+                "Comece por summary.status, series_error, warnings e total_row_delta_estimate.",
+                "Use series_outputs para auditar ativo/fonte/timeframe/arquivo sem abrir múltiplos logs.",
+                "Use http_telemetry para detectar rate limit, instabilidade da exchange ou configuração agressiva demais.",
+                "Não transformar coleta OK em conclusão econômica; edge só é medido após labels, walk-forward, backtest e registry.",
+            ],
+        }
+
+        atomic_save_json(payload, self.paths.fetch_run_report_path())
+        atomic_save_json(payload, self.paths.fetch_run_report_latest_path())
+        logging.info(f"[RUN REPORT SAVED] {self.paths.fetch_run_report_latest_path()}")
+        return self.paths.fetch_run_report_latest_path()
 
     def save_catalog(self) -> None:
         with self.catalog_lock:
@@ -2341,6 +2706,7 @@ class ArchangelCryptoDataEngine:
         self._save_run_state()
 
         elapsed = time.time() - t0
+        self.save_run_report(elapsed, run_status="OK")
 
         with self.catalog_lock:
             total_catalog = len(self.catalog_records)
@@ -2358,6 +2724,8 @@ class ArchangelCryptoDataEngine:
 
 def main():
     setup_logging()
+    engine: Optional[ArchangelCryptoDataEngine] = None
+    t0 = time.time()
 
     try:
         engine = ArchangelCryptoDataEngine()
@@ -2366,9 +2734,14 @@ def main():
 
     except KeyboardInterrupt:
         logging.warning("Processo interrompido pelo usuário.")
+        if engine is not None:
+            engine.save_run_report(time.time() - t0, run_status="INTERRUPTED_BY_USER")
 
     except Exception as e:
         logging.exception(f"Erro fatal: {e}")
+        if engine is not None:
+            engine.record_processing_error("run", "system", "ALL", "ALL", "ALL", "fatal_main", e, path=FETCH_RUN_REPORT_LATEST_PATH)
+            engine.save_run_report(time.time() - t0, run_status="ERROR_FATAL", fatal_error=str(e))
 
 
 if __name__ == "__main__":
