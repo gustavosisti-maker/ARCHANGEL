@@ -54,6 +54,23 @@ COMPARE_COLUMNS = (
     "feat_volume_z_20",
     "feat_volume_ma_ratio_20",
     "feat_absret_volume_corr_20",
+    "feat_vol_of_vol_20",
+    "feat_atr_21",
+    "feat_parkinson_vol_20",
+    "feat_garman_klass_vol_20",
+    "feat_trend_strength_20",
+    "feat_efficiency_ratio_20",
+    "feat_vol_regime_z_20",
+    "feat_rolling_sharpe_proxy_20",
+    "feat_rolling_sortino_proxy_20",
+    "feat_signed_volume_sum_20",
+    "feat_volume_pressure_20",
+    "feat_dollar_volume_mean_20",
+    "feat_dollar_volume_z_20",
+    "feat_amihud_illiq_20",
+    "feat_ret_shock_z_20",
+    "feat_range_shock_z_20",
+    "feat_dollar_volume_shock_z_20",
 )
 
 
@@ -276,6 +293,55 @@ def recommendation(results: List[Dict[str, Any]]) -> str:
     )
 
 
+def run_synthetic_control(row_count: int = 120_000) -> Dict[str, Any]:
+    rng = np.random.default_rng(42)
+    dates = pd.date_range("2024-01-01", periods=row_count, freq="h")
+    close = 100.0 + np.cumsum(rng.normal(0.0, 0.8, row_count))
+    open_ = close * (1.0 + rng.normal(0.0, 0.001, row_count))
+    high = np.maximum(open_, close) * (1.0 + np.abs(rng.normal(0.001, 0.0005, row_count)))
+    low = np.minimum(open_, close) * (1.0 - np.abs(rng.normal(0.001, 0.0005, row_count)))
+    volume = np.maximum(1.0, rng.lognormal(7.0, 0.5, row_count))
+    raw = pd.DataFrame({
+        "DateTime": dates,
+        "Open": open_,
+        "High": high,
+        "Low": low,
+        "Close": close,
+        "Volume": volume,
+    })
+
+    cpu_module = load_features_module("cpu")
+    cuda_module = load_features_module("cuda")
+    prepared = cpu_module.prepare_ohlcv(raw)
+    cpu_result = run_generate(cpu_module, prepared, "1h")
+    cuda_result = run_generate(cuda_module, prepared, "1h")
+    comparison = compare_outputs(cpu_result["output_df"], cuda_result["output_df"])
+    rolling_families = sorted({
+        str(step.get("source_family"))
+        for step in cuda_result.get("cuda_rolling_steps") or []
+        if isinstance(step, dict) and step.get("source_family")
+    })
+    rolling_ops = sum(
+        int(step.get("accelerated_count") or 0)
+        for step in cuda_result.get("cuda_rolling_steps") or []
+        if isinstance(step, dict)
+    )
+    del cpu_result["output_df"], cuda_result["output_df"], raw, prepared
+    gc.collect()
+    return {
+        "status": "OK" if comparison.get("status") == "OK" else "CHECK",
+        "row_count": int(row_count),
+        "timeframe": "1h",
+        "purpose": "Controle sintético não-turbo para exercitar famílias rolling migradas que podem ser puladas no benchmark real FAST/TURBO.",
+        "cpu_elapsed_seconds": cpu_result.get("elapsed_seconds"),
+        "cuda_elapsed_seconds": cuda_result.get("elapsed_seconds"),
+        "comparison": comparison,
+        "cuda_compute_backend": cuda_result.get("compute_backend"),
+        "cuda_rolling_families": rolling_families,
+        "cuda_rolling_accelerated_operations": int(rolling_ops),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Benchmark CPU vs CUDA da etapa 3.")
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="Numero de series mais lentas a testar.")
@@ -305,6 +371,15 @@ def main() -> int:
             build_payload(started_at, results, python_env, partial=True, row_cap=max(1, int(args.row_cap)), limit=max(1, int(args.limit))),
         )
 
+    try:
+        synthetic_control = run_synthetic_control()
+    except Exception as exc:
+        synthetic_control = {
+            "status": "ERROR",
+            "error": f"{type(exc).__name__}: {exc}",
+            "traceback_tail": traceback.format_exc().splitlines()[-12:],
+        }
+
     payload = build_payload(
         started_at,
         results,
@@ -312,6 +387,7 @@ def main() -> int:
         partial=False,
         row_cap=max(1, int(args.row_cap)),
         limit=max(1, int(args.limit)),
+        synthetic_control=synthetic_control,
     )
     atomic_write_json(BENCHMARK_LATEST_PATH, payload)
 
@@ -328,6 +404,7 @@ def build_payload(
     partial: bool,
     row_cap: int,
     limit: int,
+    synthetic_control: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     finished_at = now_iso()
     ok_results = [item for item in results if item.get("status") == "OK"]
@@ -392,11 +469,17 @@ def build_payload(
             "cuda_rolling_accelerated_operations": int(cuda_rolling_accelerated_operations),
             "cuda_rolling_fallback_operations": int(cuda_rolling_fallback_operations),
             "numerical_comparison_ok": all((item.get("comparison") or {}).get("status") == "OK" for item in ok_results) if ok_results else False,
+            "synthetic_control_status": (synthetic_control or {}).get("status"),
+            "synthetic_control_numerical_ok": ((synthetic_control or {}).get("comparison") or {}).get("status") == "OK",
+            "synthetic_control_max_abs_diff": ((synthetic_control or {}).get("comparison") or {}).get("max_abs_diff"),
+            "synthetic_control_cuda_rolling_families": (synthetic_control or {}).get("cuda_rolling_families"),
+            "synthetic_control_cuda_rolling_accelerated_operations": (synthetic_control or {}).get("cuda_rolling_accelerated_operations"),
             "recommendation": recommendation(results),
         },
         "python_cuda_summary": (python_env.get("summary") if isinstance(python_env, dict) else {}),
         "started_at": started_at,
         "finished_at": finished_at,
+        "synthetic_control": synthetic_control or {},
         "results": results,
     }
 

@@ -92,7 +92,7 @@ SCRIPT_NAME = "3_GERA_FEATURES_V3_FAST_AUDITED.py"
 SYSTEM_NAME = "ARCHANGEL"
 SYSTEM_VERSION = "v1"
 
-SCHEMA_VERSION = "ARCHANGEL_FEATURE_STORE_3.2_GOVERNED_ML_READY_TIME_AWARE"
+SCHEMA_VERSION = "ARCHANGEL_FEATURE_STORE_3.3_CUDA_CONTROLLED_ROLLING"
 
 
 
@@ -245,18 +245,27 @@ READ_PARQUET_ONLY_OHLCV_WHEN_POSSIBLE = True
 ENABLE_PARALLEL_PROCESSING = True
 
 FEATURE_CUDA_MODE = os.environ.get("ARCHANGEL_FEATURE_CUDA_MODE", "auto").strip().lower()
-FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB = float(os.environ.get("ARCHANGEL_FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB", "12000"))
-FEATURE_CUDA_MAX_WORKERS = int(os.environ.get("ARCHANGEL_FEATURE_CUDA_MAX_WORKERS", "2"))
+FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB = float(os.environ.get("ARCHANGEL_FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB", "4096"))
+FEATURE_CUDA_AUTO_MIN_ROWS = int(os.environ.get("ARCHANGEL_FEATURE_CUDA_AUTO_MIN_ROWS", "1500000"))
+FEATURE_CUDA_MAX_WORKERS = int(os.environ.get("ARCHANGEL_FEATURE_CUDA_MAX_WORKERS", "1"))
 FEATURE_CUDA_ACCELERATED_BLOCKS = (
     "returns_vector_core",
     "rolling_return",
     "volatility",
+    "vol_of_vol",
     "sma",
     "volume",
+    "atr_range_volatility",
+    "range_volatility_estimators",
+    "trend_strength",
+    "regime",
+    "volume_pressure",
+    "shock_features",
 )
 FEATURE_CUDA_NOTE = (
-    "CUDA na etapa 3 é aplicado em blocos vetoriais e em rolling windows "
-    "cumulativas seguras; Bollinger e indicadores temporais sensíveis continuam no caminho Pandas/CPU."
+    "CUDA na etapa 3 é aplicado somente em operações vetoriais e rolling cumulativas seguras "
+    "(sum/mean/std/corr), com fallback CPU e benchmark de equivalência numérica. "
+    "Rolling min/max, quantile, skew/kurt e apply(MAD) continuam no Pandas/CPU nesta fase."
 )
 
 # Seu hardware tem 12 cores físicos / 24 threads,
@@ -1888,6 +1897,7 @@ def resolve_feature_compute_backend(timeframe: Optional[str], row_count: int) ->
         "cupy_version": cupy_status.get("version") if isinstance(cupy_status, dict) else None,
         "nvidia_smi": nvidia,
         "auto_min_gpu_memory_mb": FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB,
+        "auto_min_rows": FEATURE_CUDA_AUTO_MIN_ROWS,
         "cuda_max_workers": FEATURE_CUDA_MAX_WORKERS,
         "note": FEATURE_CUDA_NOTE,
     }
@@ -1907,6 +1917,11 @@ def resolve_feature_compute_backend(timeframe: Optional[str], row_count: int) ->
         return plan
 
     if FEATURE_CUDA_MODE == "auto":
+        if int(row_count or 0) < FEATURE_CUDA_AUTO_MIN_ROWS:
+            plan["reason"] = (
+                "Auto conservador: série abaixo do limite mínimo de linhas para compensar transferência CPU/GPU; benchmark atual só ficou competitivo perto de 1M linhas."
+            )
+            return plan
         try:
             if memory_total_mb is not None and float(memory_total_mb) < FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB:
                 plan["reason"] = (
@@ -2030,14 +2045,19 @@ def compute_log_diff(
         }
 
 
-def _rolling_cpu_report(kind: str, window: int) -> Dict[str, Any]:
-    return {
+def _rolling_cpu_report(kind: str, window: int, *, status: str = "OK", rows: Optional[int] = None, reason: Optional[str] = None) -> Dict[str, Any]:
+    report = {
         "backend": "pandas_cpu",
-        "status": "OK",
+        "status": status,
         "kind": kind,
         "window": int(window),
         "accelerated": False,
     }
+    if rows is not None:
+        report["rows"] = int(rows)
+    if reason:
+        report["reason"] = reason
+    return report
 
 
 def compute_rolling_stats(
@@ -2060,6 +2080,24 @@ def compute_rolling_stats(
         if need_std:
             output["std"] = roll.std()
         return output, _rolling_cpu_report("stats", window)
+
+    n_local = int(len(series))
+    if FEATURE_CUDA_MODE == "auto" and n_local < FEATURE_CUDA_AUTO_MIN_ROWS:
+        roll = series.rolling(window, min_periods=window)
+        output: Dict[str, pd.Series] = {}
+        if need_sum:
+            output["sum"] = roll.sum()
+        if need_mean:
+            output["mean"] = roll.mean()
+        if need_std:
+            output["std"] = roll.std()
+        return output, _rolling_cpu_report(
+            "stats",
+            window,
+            status="CPU_BELOW_CUDA_ROW_THRESHOLD",
+            rows=n_local,
+            reason=f"rows<{FEATURE_CUDA_AUTO_MIN_ROWS}; avoiding CPU/GPU transfer overhead on current GPU",
+        )
 
     try:
         with warnings.catch_warnings():
@@ -2174,6 +2212,16 @@ def compute_rolling_corr(
     if backend_plan.get("resolved_backend") != "cupy_cuda":
         return left.rolling(window, min_periods=window).corr(right), _rolling_cpu_report("corr", window)
 
+    n_local = int(len(left))
+    if FEATURE_CUDA_MODE == "auto" and n_local < FEATURE_CUDA_AUTO_MIN_ROWS:
+        return left.rolling(window, min_periods=window).corr(right), _rolling_cpu_report(
+            "corr",
+            window,
+            status="CPU_BELOW_CUDA_ROW_THRESHOLD",
+            rows=n_local,
+            reason=f"rows<{FEATURE_CUDA_AUTO_MIN_ROWS}; avoiding CPU/GPU transfer overhead on current GPU",
+        )
+
     try:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message="CUDA path could not be detected.*")
@@ -2251,22 +2299,25 @@ def append_cuda_rolling_report(
     fallbacks = [report for report in reports if report.get("status") == "FALLBACK"]
     cpu = [report for report in reports if report.get("backend") == "pandas_cpu"]
 
-    if not accelerated and not fallbacks:
+    cpu_policy = [report for report in cpu if report.get("status") != "OK"]
+    if not accelerated and not fallbacks and not cpu_policy:
         return
 
     execution_steps.append({
         "family": "__cuda_rolling__",
         "source_family": source_family,
-        "status": "FALLBACK" if fallbacks else "OK",
+        "status": "FALLBACK" if fallbacks else ("CPU_POLICY" if cpu_policy and not accelerated else "OK"),
         "elapsed_seconds": 0.0,
         "backend": "cupy_cuda" if accelerated else ("pandas_cpu_fallback" if fallbacks else "pandas_cpu"),
         "accelerated": bool(accelerated),
         "accelerated_count": len(accelerated),
         "fallback_count": len(fallbacks),
         "cpu_count": len(cpu),
+        "cpu_policy_count": len(cpu_policy),
         "windows": sorted({int(report.get("window")) for report in reports if report.get("window") is not None}),
         "kinds": sorted({str(report.get("kind")) for report in reports if report.get("kind")}),
         "errors_first_5": [str(report.get("error")) for report in fallbacks if report.get("error")][:5],
+        "cpu_policy_reasons_first_5": [str(report.get("reason")) for report in cpu_policy if report.get("reason")][:5],
     })
 
 
@@ -2318,6 +2369,14 @@ def generate_all_features(
     })
     abs_ret_1 = ret_1.abs()
     ret_1_sq = ret_1 ** 2
+    if backend_plan.get("resolved_backend") == "cupy_cuda":
+        log_close_sensitive_cpu = safe_log(close)
+        ret_1_sensitive_cpu = log_close_sensitive_cpu.diff(1)
+        abs_ret_1_sensitive_cpu = ret_1_sensitive_cpu.abs()
+    else:
+        log_close_sensitive_cpu = log_close
+        ret_1_sensitive_cpu = ret_1
+        abs_ret_1_sensitive_cpu = abs_ret_1
 
     # -------------------------------------------------------------------------
     # RETURNS
@@ -2421,17 +2480,23 @@ def generate_all_features(
     family = "vol_of_vol"
     if FEATURE_CONFIG[family]["enabled"]:
         start = time.time()
+        rolling_reports: List[Dict[str, Any]] = []
 
         for w in filter_windows_for_timeframe(FEATURE_CONFIG[family]["windows"], timeframe):
             base_vol = vol_cache.get(w)
             if base_vol is None:
-                base_vol = ret_1.rolling(w, min_periods=w).std()
+                base_stats, base_report = compute_rolling_stats(ret_1, w, backend_plan, need_std=True)
+                rolling_reports.append(base_report)
+                base_vol = base_stats["std"]
 
             col = f"feat_vol_of_vol_{w}"
-            features[col] = base_vol.rolling(w, min_periods=w).std()
+            vv_stats, vv_report = compute_rolling_stats(base_vol, w, backend_plan, need_std=True)
+            rolling_reports.append(vv_report)
+            features[col] = vv_stats["std"]
             add_feature_meta(metadata, col, family, f"Volatilidade da volatilidade {w}.", f"std(rv_{w},{w})", 2 * w)
 
         execution_steps.append({"family": family, "status": "OK", "elapsed_seconds": round(time.time() - start, 6)})
+        append_cuda_rolling_report(execution_steps, family, rolling_reports)
 
     # -------------------------------------------------------------------------
     # EMA
@@ -2492,6 +2557,7 @@ def generate_all_features(
         num_std = float(FEATURE_CONFIG[family]["num_std"])
 
         for w in filter_windows_for_timeframe(FEATURE_CONFIG[family]["windows"], timeframe):
+            # Mantido em Pandas/CPU: std de preço pode sofrer cancelamento numérico em CUDA cumulativo.
             mean = close.rolling(w, min_periods=w).mean()
             std = close.rolling(w, min_periods=w).std()
             upper = mean + num_std * std
@@ -2651,6 +2717,7 @@ def generate_all_features(
         start = time.time()
 
         for w in filter_windows_for_timeframe(FEATURE_CONFIG[family]["windows"], timeframe):
+            # Rolling min/max permanece em CPU nesta fase para evitar uso de memoria imprevisivel na GTX 1660 Ti.
             rolling_max = close.rolling(w, min_periods=w).max()
             rolling_min = close.rolling(w, min_periods=w).min()
             rolling_range = (rolling_max - rolling_min).replace(0, np.nan)
@@ -2671,17 +2738,21 @@ def generate_all_features(
     family = "trend_strength"
     if FEATURE_CONFIG[family]["enabled"]:
         start = time.time()
+        rolling_reports: List[Dict[str, Any]] = []
 
         for w in filter_windows_for_timeframe(FEATURE_CONFIG[family]["windows"], timeframe):
             vol = vol_cache.get(w)
             if vol is None:
-                vol = ret_1.rolling(w, min_periods=w).std()
+                vol_stats, vol_report = compute_rolling_stats(ret_1, w, backend_plan, need_std=True)
+                rolling_reports.append(vol_report)
+                vol = vol_stats["std"]
 
             col = f"feat_trend_strength_{w}"
             features[col] = safe_div(log_close.diff(w), vol * np.sqrt(w))
             add_feature_meta(metadata, col, family, f"Força tendência {w}.", f"ret_{w}/(std*sqrt(w))", w)
 
         execution_steps.append({"family": family, "status": "OK", "elapsed_seconds": round(time.time() - start, 6)})
+        append_cuda_rolling_report(execution_steps, family, rolling_reports)
 
     # -------------------------------------------------------------------------
     # AUTOCORRELATION
@@ -2691,10 +2762,10 @@ def generate_all_features(
         start = time.time()
 
         for w in filter_windows_for_timeframe(FEATURE_CONFIG[family]["windows"], timeframe):
-            roll = ret_1.rolling(w, min_periods=w)
+            roll = ret_1_sensitive_cpu.rolling(w, min_periods=w)
             for lag in FEATURE_CONFIG[family]["lags"]:
                 col = f"feat_ret_autocorr_w{w}_lag{lag}"
-                features[col] = roll.corr(ret_1.shift(lag))
+                features[col] = roll.corr(ret_1_sensitive_cpu.shift(lag))
                 add_feature_meta(metadata, col, family, f"Autocorr ret w{w} lag{lag}.", "rolling corr", w + lag)
 
         execution_steps.append({"family": family, "status": "OK", "elapsed_seconds": round(time.time() - start, 6)})
@@ -2715,8 +2786,11 @@ def generate_all_features(
         add_feature_meta(metadata, "feat_true_range", family, "True Range.", "TR", 1)
         add_feature_meta(metadata, "feat_true_range_close_ratio", family, "TR/Close.", "TR/Close", 1)
 
+        rolling_reports: List[Dict[str, Any]] = []
         for w in FEATURE_CONFIG[family]["windows"]:
-            atr = tr.rolling(w, min_periods=w).mean()
+            atr_stats, atr_report = compute_rolling_stats(tr, w, backend_plan, need_mean=True)
+            rolling_reports.append(atr_report)
+            atr = atr_stats["mean"]
 
             features[f"feat_atr_{w}"] = atr
             features[f"feat_atr_{w}_ratio"] = safe_div(atr, close)
@@ -2725,6 +2799,7 @@ def generate_all_features(
             add_feature_meta(metadata, f"feat_atr_{w}_ratio", family, f"ATR ratio {w}.", "ATR/Close", w)
 
         execution_steps.append({"family": family, "status": "OK", "elapsed_seconds": round(time.time() - start, 6)})
+        append_cuda_rolling_report(execution_steps, family, rolling_reports)
 
     # -------------------------------------------------------------------------
     # RANGE VOL ESTIMATORS
@@ -2739,18 +2814,23 @@ def generate_all_features(
         co_log_sq = co_log ** 2
         gk_base = 0.5 * hl_log_sq - (2.0 * math.log(2.0) - 1.0) * co_log_sq
 
+        rolling_reports: List[Dict[str, Any]] = []
         for w in filter_windows_for_timeframe(FEATURE_CONFIG[family]["windows"], timeframe):
+            hl_stats, hl_report = compute_rolling_stats(hl_log_sq, w, backend_plan, need_mean=True)
+            gk_stats, gk_report = compute_rolling_stats(gk_base, w, backend_plan, need_mean=True)
+            rolling_reports.extend([hl_report, gk_report])
             features[f"feat_parkinson_vol_{w}"] = np.sqrt(
-                safe_div(hl_log_sq.rolling(w, min_periods=w).mean(), 4.0 * math.log(2.0))
+                safe_div(hl_stats["mean"], 4.0 * math.log(2.0))
             )
             features[f"feat_garman_klass_vol_{w}"] = np.sqrt(
-                gk_base.rolling(w, min_periods=w).mean().clip(lower=0)
+                gk_stats["mean"].clip(lower=0)
             )
 
             add_feature_meta(metadata, f"feat_parkinson_vol_{w}", family, f"Parkinson vol {w}.", "Parkinson", w)
             add_feature_meta(metadata, f"feat_garman_klass_vol_{w}", family, f"Garman-Klass vol {w}.", "GK", w)
 
         execution_steps.append({"family": family, "status": "OK", "elapsed_seconds": round(time.time() - start, 6)})
+        append_cuda_rolling_report(execution_steps, family, rolling_reports)
 
     # -------------------------------------------------------------------------
     # DONCHIAN
@@ -2813,8 +2893,8 @@ def generate_all_features(
         start = time.time()
 
         for w in filter_windows_for_timeframe(FEATURE_CONFIG[family]["windows"], timeframe):
-            features[f"feat_ret_skew_{w}"] = ret_1.rolling(w, min_periods=w).skew()
-            features[f"feat_ret_kurt_{w}"] = ret_1.rolling(w, min_periods=w).kurt()
+            features[f"feat_ret_skew_{w}"] = ret_1_sensitive_cpu.rolling(w, min_periods=w).skew()
+            features[f"feat_ret_kurt_{w}"] = ret_1_sensitive_cpu.rolling(w, min_periods=w).kurt()
 
             add_feature_meta(metadata, f"feat_ret_skew_{w}", family, f"Skew ret {w}.", "skew", w)
             add_feature_meta(metadata, f"feat_ret_kurt_{w}", family, f"Kurt ret {w}.", "kurt", w)
@@ -2829,23 +2909,31 @@ def generate_all_features(
     family = "regime"
     if FEATURE_CONFIG[family]["enabled"]:
         start = time.time()
+        rolling_reports: List[Dict[str, Any]] = []
 
         for w in filter_windows_for_timeframe(FEATURE_CONFIG[family]["windows"], timeframe):
             trend_abs = log_close.diff(w).abs()
-            noise = abs_ret_1.rolling(w, min_periods=w).sum()
+            noise_stats, noise_report = compute_rolling_stats(abs_ret_1, w, backend_plan, need_sum=True)
+            rolling_reports.append(noise_report)
+            noise = noise_stats["sum"]
             efficiency = safe_div(trend_abs, noise)
 
             vol = vol_cache.get(w)
             if vol is None:
-                vol = ret_1.rolling(w, min_periods=w).std()
+                vol_stats, vol_report = compute_rolling_stats(ret_1, w, backend_plan, need_std=True)
+                rolling_reports.append(vol_report)
+                vol = vol_stats["std"]
 
+            vol_z_stats, vol_z_report = compute_rolling_stats(vol, w, backend_plan, need_mean=True, need_std=True)
+            rolling_reports.append(vol_z_report)
             features[f"feat_efficiency_ratio_{w}"] = efficiency
-            features[f"feat_vol_regime_z_{w}"] = rolling_zscore(vol, w)
+            features[f"feat_vol_regime_z_{w}"] = safe_div(vol - vol_z_stats["mean"], vol_z_stats["std"])
 
             add_feature_meta(metadata, f"feat_efficiency_ratio_{w}", family, f"Efficiency ratio {w}.", "abs(ret_w)/sum(absret)", w)
             add_feature_meta(metadata, f"feat_vol_regime_z_{w}", family, f"Vol regime z {w}.", "zscore(vol)", 2 * w)
 
         execution_steps.append({"family": family, "status": "OK", "elapsed_seconds": round(time.time() - start, 6)})
+        append_cuda_rolling_report(execution_steps, family, rolling_reports)
 
     # -------------------------------------------------------------------------
     # RISK PROXY
@@ -2854,10 +2942,11 @@ def generate_all_features(
     if FEATURE_CONFIG[family]["enabled"]:
         start = time.time()
 
-        downside = ret_1.where(ret_1 < 0, 0.0)
+        downside = ret_1_sensitive_cpu.where(ret_1_sensitive_cpu < 0, 0.0)
 
         for w in filter_windows_for_timeframe(FEATURE_CONFIG[family]["windows"], timeframe):
-            roll = ret_1.rolling(w, min_periods=w)
+            # Mantido em Pandas/CPU: Sharpe/Sortino amplificam pequenas diferenças de std.
+            roll = ret_1_sensitive_cpu.rolling(w, min_periods=w)
             mean_ret = roll.mean()
             std_ret = roll.std()
             downside_std = downside.rolling(w, min_periods=w).std()
@@ -2883,14 +2972,18 @@ def generate_all_features(
     family = "volume_pressure"
     if FEATURE_CONFIG[family]["enabled"]:
         start = time.time()
+        rolling_reports: List[Dict[str, Any]] = []
 
         signed_volume = np.sign(close - open_) * volume
         features["feat_signed_volume"] = signed_volume
         add_feature_meta(metadata, "feat_signed_volume", family, "Volume assinado.", "sign(C-O)*V", 0)
 
         for w in FEATURE_CONFIG[family]["windows"]:
-            sum_signed = signed_volume.rolling(w, min_periods=w).sum()
-            sum_volume = volume.rolling(w, min_periods=w).sum()
+            signed_stats, signed_report = compute_rolling_stats(signed_volume, w, backend_plan, need_sum=True)
+            volume_stats, volume_report = compute_rolling_stats(volume, w, backend_plan, need_sum=True)
+            rolling_reports.extend([signed_report, volume_report])
+            sum_signed = signed_stats["sum"]
+            sum_volume = volume_stats["sum"]
 
             features[f"feat_signed_volume_sum_{w}"] = sum_signed
             features[f"feat_volume_pressure_{w}"] = safe_div(sum_signed, sum_volume)
@@ -2899,6 +2992,7 @@ def generate_all_features(
             add_feature_meta(metadata, f"feat_volume_pressure_{w}", family, f"Volume pressure {w}.", "signed/volume", w)
 
         execution_steps.append({"family": family, "status": "OK", "elapsed_seconds": round(time.time() - start, 6)})
+        append_cuda_rolling_report(execution_steps, family, rolling_reports)
 
     # -------------------------------------------------------------------------
     # LIQUIDITY
@@ -2912,12 +3006,13 @@ def generate_all_features(
         add_feature_meta(metadata, "feat_dollar_volume", family, "Dollar volume.", "Close*Volume", 0)
 
         for w in FEATURE_CONFIG[family]["windows"]:
+            # Mantido em Pandas/CPU: escala de dollar volume exige tolerância relativa formal antes de CUDA.
             dv_mean = dollar_volume.rolling(w, min_periods=w).mean()
             dv_std = dollar_volume.rolling(w, min_periods=w).std()
 
             features[f"feat_dollar_volume_mean_{w}"] = dv_mean
             features[f"feat_dollar_volume_z_{w}"] = safe_div(dollar_volume - dv_mean, dv_std)
-            features[f"feat_amihud_illiq_{w}"] = safe_div(abs_ret_1, dollar_volume.replace(0, np.nan)).rolling(w, min_periods=w).mean()
+            features[f"feat_amihud_illiq_{w}"] = safe_div(abs_ret_1_sensitive_cpu, dollar_volume.replace(0, np.nan)).rolling(w, min_periods=w).mean()
 
             add_feature_meta(metadata, f"feat_dollar_volume_mean_{w}", family, f"Dollar volume mean {w}.", "mean(DV)", w)
             add_feature_meta(metadata, f"feat_dollar_volume_z_{w}", family, f"Dollar volume z {w}.", "zscore(DV)", w)
@@ -2931,14 +3026,20 @@ def generate_all_features(
     family = "shock_features"
     if FEATURE_CONFIG[family]["enabled"]:
         start = time.time()
+        rolling_reports: List[Dict[str, Any]] = []
 
         candle_range_ret = safe_div(high, low) - 1.0
         dollar_volume = close * volume
+        log_dollar_volume = np.log1p(dollar_volume)
 
         for w in FEATURE_CONFIG[family]["windows"]:
-            ret_z = rolling_zscore(ret_1, w)
-            range_z = rolling_zscore(candle_range_ret, w)
-            dv_z = rolling_zscore(np.log1p(dollar_volume), w)
+            ret_stats, ret_report = compute_rolling_stats(ret_1, w, backend_plan, need_mean=True, need_std=True)
+            range_stats, range_report = compute_rolling_stats(candle_range_ret, w, backend_plan, need_mean=True, need_std=True)
+            dv_stats, dv_report = compute_rolling_stats(log_dollar_volume, w, backend_plan, need_mean=True, need_std=True)
+            rolling_reports.extend([ret_report, range_report, dv_report])
+            ret_z = safe_div(ret_1 - ret_stats["mean"], ret_stats["std"])
+            range_z = safe_div(candle_range_ret - range_stats["mean"], range_stats["std"])
+            dv_z = safe_div(log_dollar_volume - dv_stats["mean"], dv_stats["std"])
 
             features[f"feat_ret_shock_z_{w}"] = ret_z
             features[f"feat_range_shock_z_{w}"] = range_z
@@ -2951,6 +3052,7 @@ def generate_all_features(
             add_feature_meta(metadata, f"feat_large_move_flag_{w}", family, f"Flag movimento extremo {w}.", "abs(ret_z)>=2.5", w)
 
         execution_steps.append({"family": family, "status": "OK", "elapsed_seconds": round(time.time() - start, 6)})
+        append_cuda_rolling_report(execution_steps, family, rolling_reports)
 
     # -------------------------------------------------------------------------
     # MARKET STRUCTURE
@@ -3879,7 +3981,7 @@ def resolve_max_worker_count(batch: List[Dict[str, Any]], batch_name: str) -> in
     if "TURBO" in str(batch_name).upper():
         cpu_workers = min(cpu_workers, MAX_WORKERS_TURBO_BATCH)
 
-    if FEATURE_CUDA_MODE in {"cuda", "cupy", "gpu"}:
+    if FEATURE_CUDA_MODE in {"auto", "cuda", "cupy", "gpu"}:
         cpu_workers = min(cpu_workers, max(1, int(FEATURE_CUDA_MAX_WORKERS)))
 
     return max(1, cpu_workers)
@@ -4916,7 +5018,10 @@ def aggregate_feature_compute_backend(results: List[Dict[str, Any]]) -> Dict[str
     rolling_family_counts: Dict[str, int] = {}
     rolling_accelerated_total = 0
     rolling_fallback_total = 0
+    rolling_cpu_total = 0
+    rolling_cpu_policy_total = 0
     fallback_errors: List[str] = []
+    cpu_policy_reasons: List[str] = []
 
     for result in results:
         if result.get("status") != "OK":
@@ -4945,8 +5050,12 @@ def aggregate_feature_compute_backend(results: List[Dict[str, Any]]) -> Dict[str
             rolling_family_counts[source_family] = rolling_family_counts.get(source_family, 0) + 1
             rolling_accelerated_total += int(step.get("accelerated_count") or 0)
             rolling_fallback_total += int(step.get("fallback_count") or 0)
+            rolling_cpu_total += int(step.get("cpu_count") or 0)
+            rolling_cpu_policy_total += int(step.get("cpu_policy_count") or 0)
             for error in step.get("errors_first_5") or []:
                 fallback_errors.append(str(error))
+            for reason in step.get("cpu_policy_reasons_first_5") or []:
+                cpu_policy_reasons.append(str(reason))
 
     return {
         "mode": FEATURE_CUDA_MODE,
@@ -4956,8 +5065,11 @@ def aggregate_feature_compute_backend(results: List[Dict[str, Any]]) -> Dict[str
         "rolling_step_family_counts": dict(sorted(rolling_family_counts.items())),
         "rolling_accelerated_operations": int(rolling_accelerated_total),
         "rolling_fallback_operations": int(rolling_fallback_total),
+        "rolling_cpu_operations_reported": int(rolling_cpu_total),
+        "rolling_cpu_policy_operations": int(rolling_cpu_policy_total),
         "cuda_series_count": int(backend_counts.get("cupy_cuda", 0)),
         "fallback_errors_first_20": fallback_errors[:20],
+        "cpu_policy_reasons_first_20": cpu_policy_reasons[:20],
         "accelerated_blocks": list(FEATURE_CUDA_ACCELERATED_BLOCKS),
         "note": FEATURE_CUDA_NOTE,
     }
@@ -5116,7 +5228,7 @@ def save_run_report(results: List[Dict[str, Any]], selected: List[Dict[str, Any]
     retry_plan = build_retry_plan_payload(results, selected)
 
     payload = {
-        "schema_version": "ARCHANGEL_FEATURES_RUN_REPORT_3.2_GOVERNED_ML_READY",
+        "schema_version": "ARCHANGEL_FEATURES_RUN_REPORT_3.3_CUDA_CONTROLLED_ROLLING",
         "generated_at": now_iso(),
         "run_id": RUN_ID,
         "script": SCRIPT_NAME,
@@ -5202,6 +5314,7 @@ def save_run_report(results: List[Dict[str, Any]], selected: List[Dict[str, Any]
                 "enable_parallel_processing": ENABLE_PARALLEL_PROCESSING,
                 "feature_cuda_mode": FEATURE_CUDA_MODE,
                 "feature_cuda_auto_min_gpu_memory_mb": FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB,
+                "feature_cuda_auto_min_rows": FEATURE_CUDA_AUTO_MIN_ROWS,
                 "feature_cuda_max_workers": FEATURE_CUDA_MAX_WORKERS,
                 "feature_cuda_accelerated_blocks": list(FEATURE_CUDA_ACCELERATED_BLOCKS),
                 "feature_cuda_note": FEATURE_CUDA_NOTE,
@@ -5379,6 +5492,7 @@ def build_features_json_payload(
             "enable_parallel_processing": ENABLE_PARALLEL_PROCESSING,
             "feature_cuda_mode": FEATURE_CUDA_MODE,
             "feature_cuda_auto_min_gpu_memory_mb": FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB,
+            "feature_cuda_auto_min_rows": FEATURE_CUDA_AUTO_MIN_ROWS,
             "feature_cuda_max_workers": FEATURE_CUDA_MAX_WORKERS,
             "feature_cuda_accelerated_blocks": list(FEATURE_CUDA_ACCELERATED_BLOCKS),
             "feature_cuda_note": FEATURE_CUDA_NOTE,
@@ -6375,6 +6489,8 @@ def main() -> None:
     print(f"[FILTER_TIMEFRAMES] {FILTER_TIMEFRAMES}")
     print(f"[PARALELISMO] {ENABLE_PARALLEL_PROCESSING}")
     print(f"[FEATURE_CUDA_MODE] {FEATURE_CUDA_MODE}")
+    print(f"[FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB] {FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB}")
+    print(f"[FEATURE_CUDA_AUTO_MIN_ROWS] {FEATURE_CUDA_AUTO_MIN_ROWS}")
     print(f"[FEATURE_CUDA_MAX_WORKERS] {FEATURE_CUDA_MAX_WORKERS}")
     print(f"[FEATURE_CUDA_BLOCKS] {list(FEATURE_CUDA_ACCELERATED_BLOCKS)}")
     print(f"[RESOURCE_PROFILE] {FEATURE_RESOURCE_PROFILE}")
@@ -6437,6 +6553,7 @@ def main() -> None:
             "enable_parallel_processing": ENABLE_PARALLEL_PROCESSING,
             "feature_cuda_mode": FEATURE_CUDA_MODE,
             "feature_cuda_auto_min_gpu_memory_mb": FEATURE_CUDA_AUTO_MIN_GPU_MEMORY_MB,
+            "feature_cuda_auto_min_rows": FEATURE_CUDA_AUTO_MIN_ROWS,
             "feature_cuda_max_workers": FEATURE_CUDA_MAX_WORKERS,
             "feature_cuda_accelerated_blocks": list(FEATURE_CUDA_ACCELERATED_BLOCKS),
             "feature_cuda_note": FEATURE_CUDA_NOTE,
