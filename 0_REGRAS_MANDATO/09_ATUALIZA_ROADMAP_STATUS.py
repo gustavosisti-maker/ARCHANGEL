@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
-from docx.shared import Inches, Pt, RGBColor
+from docx.shared import Cm, Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.oxml import OxmlElement
@@ -17,7 +17,6 @@ from docx.oxml.ns import qn
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
 SCRIPT_NAME = '09_ATUALIZA_ROADMAP_STATUS.py'
@@ -398,6 +397,23 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     os.replace(tmp, path)
 
 
+def replace_generated_file(tmp_path: Path, final_path: Path) -> Path:
+    try:
+        os.replace(tmp_path, final_path)
+        return final_path
+    except PermissionError:
+        fallback = final_path.with_name(f"{final_path.stem}_PENDING{final_path.suffix}")
+        try:
+            os.replace(tmp_path, fallback)
+        except PermissionError:
+            fallback = final_path.with_name(
+                f"{final_path.stem}_PENDING_{datetime.now().strftime('%Y%m%d_%H%M%S')}{final_path.suffix}"
+            )
+            os.replace(tmp_path, fallback)
+        print(f"[WARN] Arquivo aberto/bloqueado: {final_path}")
+        print(f"[WARN] Cópia atualizada salva em: {fallback}")
+        return fallback
+
 def set_font(run, bold=False, size=10.5, color='222222'):
     run.bold = bold; run.font.size = Pt(size); run.font.color.rgb = RGBColor.from_string(color); run.font.name = 'Calibri'
     run._element.get_or_add_rPr().rFonts.set(qn('w:ascii'), 'Calibri'); run._element.rPr.rFonts.set(qn('w:hAnsi'), 'Calibri')
@@ -446,7 +462,7 @@ def matrix(doc, headers, rows, widths):
 
 
 def build_docx(report):
-    doc = Document(); sec = doc.sections[0]; sec.top_margin = Inches(0.8); sec.bottom_margin = Inches(0.75); sec.left_margin = Inches(0.85); sec.right_margin = Inches(0.85)
+    doc = Document(); sec = doc.sections[0]; sec.top_margin = Cm(0.2); sec.bottom_margin = Cm(0.2); sec.left_margin = Cm(0.2); sec.right_margin = Cm(0.2)
     normal = doc.styles['Normal']; normal.font.name = 'Calibri'; normal.font.size = Pt(10.5)
     title = doc.add_paragraph(); title.alignment = WD_ALIGN_PARAGRAPH.LEFT; set_font(title.add_run('ARCHANGEL'), True, 24, '0B2545')
     sub = doc.add_paragraph(); set_font(sub.add_run('Roadmap interno v3 | Prompt reverso, status real e próximos passos'), False, 12, '555555')
@@ -468,7 +484,9 @@ def build_docx(report):
     para(doc, 'O Excel agora é o painel humano detalhado do projeto. Ele possui abas por módulo Python, ativos/séries, coleta, features, labels, datasets, walk-forward, backtest, stress, registry, parâmetros e melhorias sugeridas.')
     heading(doc, '8. Coerência Dos JSONs')
     matrix(doc, ['Campo','Valor'], [['Downstreams defasados', ', '.join(report['staleness']['downstream_stale_after_features']) or 'nenhum'], ['JSONs mais novos que run_all', len(report['staleness']['jsons_newer_than_last_run_all_report'])]], [2.1,4.4])
-    doc.save(DOCX_PATH)
+    tmp_docx = DOCX_PATH.with_suffix('.tmp.docx')
+    doc.save(tmp_docx)
+    replace_generated_file(tmp_docx, DOCX_PATH)
 
 
 def style_sheet(ws):
@@ -477,18 +495,11 @@ def style_sheet(ws):
         for c in row:
             c.font = Font(name='Calibri', size=10, color='222222'); c.alignment = Alignment(vertical='top', wrap_text=True); c.border = Border(bottom=thin)
             if c.row == 1: c.font = Font(name='Calibri', size=10, bold=True, color='FFFFFF'); c.fill = PatternFill('solid', fgColor='0B2545')
-    ws.freeze_panes = 'A2'; ws.auto_filter.ref = ws.dimensions
-    if ws.max_row >= 2 and ws.max_column >= 1:
-        try:
-            headers = [ws.cell(1, c).value for c in range(1, ws.max_column + 1)]
-            if all(isinstance(h, str) and h.strip() for h in headers):
-                ref = f'A1:{get_column_letter(ws.max_column)}{ws.max_row}'
-                tname = ''.join(ch for ch in ws.title if ch.isalnum())[:24] or 'Tabela'
-                tab = Table(displayName=f'{tname}Tbl', ref=ref)
-                tab.tableStyleInfo = TableStyleInfo(name='TableStyleMedium2', showFirstColumn=False, showLastColumn=False, showRowStripes=True, showColumnStripes=False)
-                ws.add_table(tab)
-        except Exception:
-            pass
+    if ws.max_row >= 1 and ws.max_column >= 1:
+        headers = [ws.cell(1, c).value for c in range(1, ws.max_column + 1)]
+        if all(isinstance(h, str) and h.strip() for h in headers):
+            ws.auto_filter.ref = f'A1:{get_column_letter(ws.max_column)}{ws.max_row}'
+    ws.freeze_panes = 'A2'
     for i in range(1, ws.max_column+1):
         width = 10
         for j in range(1, min(ws.max_row,250)+1):
@@ -558,7 +569,9 @@ def build_xlsx(report):
                     header = str(sheet.cell(1, cell.column).value).lower()
                     cell.number_format = '0.00%' if any(k in header for k in ['return','cagr','drawdown','accuracy','auc','rate','pct']) else '0.0000'
                 elif isinstance(cell.value, int): cell.number_format = '#,##0'
-    wb.save(XLSX_PATH)
+    tmp_xlsx = XLSX_PATH.with_suffix('.tmp.xlsx')
+    wb.save(tmp_xlsx)
+    replace_generated_file(tmp_xlsx, XLSX_PATH)
 
 
 def update_ai_index(report):
