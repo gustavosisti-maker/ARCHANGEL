@@ -13,7 +13,7 @@ from typing import Any
 import pandas as pd
 
 
-SCRIPT_NAME = "8_EXPERIMENT_REGISTRY.py"
+SCRIPT_NAME = "08_EXPERIMENT_REGISTRY.py"
 SCHEMA_VERSION = "ARCHANGEL_EXPERIMENT_REGISTRY_2.0"
 
 RULES_DIR = Path(__file__).resolve().parent
@@ -26,23 +26,23 @@ PARQUET_DIR = REGISTRY_DIR / "REGISTRY_PARQUET"
 JSONL_DIR = REGISTRY_DIR / "REGISTRY_JSONL"
 SQLITE_DIR = REGISTRY_DIR / "REGISTRY_SQLITE"
 
-FEATURES_JSON_PATH = BASE_JSON_DIR / "3_JSON_FEATURES.json"
-LABELS_JSON_PATH = BASE_JSON_DIR / "4_JSON_LABELS.json"
-DATASETS_JSON_PATH = BASE_JSON_DIR / "5_JSON_DATASETS_ML.json"
-WALK_FORWARD_JSON_PATH = BASE_JSON_DIR / "6_JSON_WALK_FORWARD.json"
-BACKTEST_JSON_PATH = BASE_JSON_DIR / "7_JSON_BACKTEST_PORTFOLIO.json"
-BACKTEST_VALIDATION_JSON_PATH = BASE_JSON_DIR / "7_BACKTEST_VALIDATION_LATEST.json"
-BACKTEST_STRESS_JSON_PATH = BASE_JSON_DIR / "7_BACKTEST_STRESS_LATEST.json"
-BACKTEST_PARAM_SEARCH_JSON_PATH = BASE_JSON_DIR / "7_BACKTEST_PARAM_SEARCH_LATEST.json"
-COST_MODEL_JSON_PATH = BASE_JSON_DIR / "COST_MODEL.json"
-PYTHON_ENV_JSON_PATH = BASE_JSON_DIR / "ARCHANGEL_PYTHON_ENVIRONMENT.json"
-MACHINE_PROFILE_JSON_PATH = BASE_JSON_DIR / "ARCHANGEL_MACHINE_PROFILE.json"
-AI_CONTEXT_INDEX_PATH = BASE_JSON_DIR / "ARCHANGEL_AI_CONTEXT_INDEX.json"
+FEATURES_JSON_PATH = BASE_JSON_DIR / "03_FEATURES_CATALOG_LATEST.json"
+LABELS_JSON_PATH = BASE_JSON_DIR / "04_LABELS_CATALOG_LATEST.json"
+DATASETS_JSON_PATH = BASE_JSON_DIR / "05_DATASETS_ML_LATEST.json"
+WALK_FORWARD_JSON_PATH = BASE_JSON_DIR / "06_WALK_FORWARD_LATEST.json"
+BACKTEST_JSON_PATH = BASE_JSON_DIR / "07_BACKTEST_PORTFOLIO_LATEST.json"
+BACKTEST_VALIDATION_JSON_PATH = BASE_JSON_DIR / "07_BACKTEST_VALIDATION_LATEST.json"
+BACKTEST_STRESS_JSON_PATH = BASE_JSON_DIR / "07_BACKTEST_STRESS_LATEST.json"
+BACKTEST_PARAM_SEARCH_JSON_PATH = BASE_JSON_DIR / "07_BACKTEST_PARAM_SEARCH_LATEST.json"
+COST_MODEL_JSON_PATH = BASE_JSON_DIR / "00_COST_MODEL.json"
+PYTHON_ENV_JSON_PATH = BASE_JSON_DIR / "00_02_PYTHON_ENVIRONMENT_LATEST.json"
+MACHINE_PROFILE_JSON_PATH = BASE_JSON_DIR / "00_01_MACHINE_PROFILE_LATEST.json"
+AI_CONTEXT_INDEX_PATH = BASE_JSON_DIR / "99_AI_CONTEXT_INDEX_LATEST.json"
 
-REGISTRY_JSON_PATH = BASE_JSON_DIR / "8_JSON_EXPERIMENT_REGISTRY.json"
-REGISTRY_LATEST_JSON_PATH = BASE_JSON_DIR / "8_EXPERIMENT_REGISTRY_LATEST.json"
-RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "8_EXPERIMENT_REGISTRY_RUN_REPORT_LATEST.json"
-VALIDATION_LATEST_PATH = BASE_JSON_DIR / "8_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json"
+REGISTRY_JSON_PATH = BASE_JSON_DIR / "08_EXPERIMENT_REGISTRY_LATEST.json"
+REGISTRY_LATEST_JSON_PATH = BASE_JSON_DIR / "08_EXPERIMENT_REGISTRY_LATEST.json"
+RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "08_EXPERIMENT_REGISTRY_LATEST.json"
+VALIDATION_LATEST_PATH = BASE_JSON_DIR / "08_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json"
 
 REGISTRY_JSONL_PATH = JSONL_DIR / "8_EXPERIMENT_REGISTRY.jsonl"
 REGISTRY_PARQUET_PATH = PARQUET_DIR / "8_EXPERIMENT_REGISTRY_LATEST.parquet"
@@ -454,10 +454,8 @@ def update_ai_context_index(summary: dict[str, Any]) -> None:
         files = index.setdefault("files", [])
         existing = {item.get("file"): item for item in files if isinstance(item, dict)}
         for file_name, role, hint in [
-            ("8_JSON_EXPERIMENT_REGISTRY.json", "registry formal de experimentos", "Use para rastrear dataset, features, labels, modelo, custos, risco, backtest, stress, validacao e status por experimento."),
-            ("8_EXPERIMENT_REGISTRY_LATEST.json", "registry formal de experimentos latest", "Alias latest do registry formal para leitura rapida pelo Codex."),
-            ("8_EXPERIMENT_REGISTRY_RUN_REPORT_LATEST.json", "telemetria do registry formal", "Use para auditar geracao do registry, contagens e caminhos de outputs."),
-            ("8_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json", "validacao do registry formal", "Use para verificar unicidade, artefatos e persistencia em JSON/Parquet/SQLite."),
+            ("08_EXPERIMENT_REGISTRY_LATEST.json", "registry formal de experimentos e telemetria", "Use para rastrear dataset, features, labels, modelo, custos, risco, backtest, stress, validacao, status e caminhos de outputs."),
+            ("08_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json", "validacao do registry formal", "Use para verificar unicidade, artefatos e persistencia em JSON/Parquet/SQLite."),
         ]:
             path = BASE_JSON_DIR / file_name
             data = load_json(path, default={}) if path.is_file() else {}
@@ -476,9 +474,8 @@ def update_ai_context_index(summary: dict[str, Any]) -> None:
         index["files"] = list(existing.values())
         order = index.setdefault("ai_reading_order", [])
         for name in [
-            "8_JSON_EXPERIMENT_REGISTRY.json",
-            "8_EXPERIMENT_REGISTRY_LATEST.json",
-            "8_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json",
+            "08_EXPERIMENT_REGISTRY_LATEST.json",
+            "08_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json",
         ]:
             if name not in order:
                 order.append(name)

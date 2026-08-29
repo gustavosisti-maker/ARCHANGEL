@@ -1,18 +1,21 @@
-#ETAPAS
-#0_DIAGNOSTICO_HARDWARE_BARRAMENTO.py
-#0_MAPEAMENTO_DIRETORIOS.py
-#1_MAPA_ATIVOS.py#7
-#2_BUSCA_DADOS.py
-#0_AUDITA_QUALIDADE_DADOS.py
-#3_GERA_FEATURES.py
-#4_GERA_LABELS.py
-#4B_GERA_LABELS_PANEL.py
-#5_MONTA_DATASETS_ML.py
-#6_WALK_FORWARD_TRAINING.py
-#7_BACKTEST_PORTFOLIO.py
-#8_EXPERIMENT_REGISTRY.py
-#9_EXECUTION_MODULE.py
-
+#ETAPAS PRINCIPAIS
+#00_RUN_ALL.py
+#00_01_DIAGNOSTICO_HARDWARE_BARRAMENTO.py
+#00_02_GERA_PYTHON_ENVIRONMENT_JSON.py
+#00_03_MAPEAMENTO_DIRETORIOS.py
+#00_04_REBASE_MANIFEST_PATHS.py
+#01_MAPA_ATIVOS.py
+#02_BUSCA_DADOS.py
+#02_01_AUDITA_QUALIDADE_DADOS.py
+#03_GERA_FEATURES.py
+#03_01_BENCHMARK_FEATURES_CUDA.py
+#04_GERA_LABELS.py
+#05_MONTA_DATASETS_ML.py
+#06_WALK_FORWARD_TRAINING.py
+#07_BACKTEST_PORTFOLIO.py
+#08_EXPERIMENT_REGISTRY.py
+#09_ATUALIZA_ROADMAP_STATUS.py
+#09_01_GERA_PROMPT_GERAL_V3_DOCX.py
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import json
@@ -36,59 +39,59 @@ DEFAULT_ARCHANGEL_PYTHON_EXE = BASE_DIR.parent / "_PYTHON" / "Python314" / "pyth
 
 STAGES = [
     {
-        "script": "0_DIAGNOSTICO_HARDWARE_BARRAMENTO.py",
+        "script": "00_01_DIAGNOSTICO_HARDWARE_BARRAMENTO.py",
         "nome": "Diagnostico de hardware/barramento",
     },
     {
-        "script": "0_GERA_PYTHON_ENVIRONMENT_JSON.py",
+        "script": "00_02_GERA_PYTHON_ENVIRONMENT_JSON.py",
         "nome": "Ambiente Python/CUDA",
     },
     {
-        "script": "0_MAPEAMENTO_DIRETORIOS.py",
+        "script": "00_03_MAPEAMENTO_DIRETORIOS.py",
         "nome": "Mapeamento de diretorios inicial",
     },
     {
-        "script": "1_MAPA_ATIVOS.py",
+        "script": "01_MAPA_ATIVOS.py",
         "nome": "Mapa de ativos inicial",
     },
     {
-        "script": "2_BUSCA_DADOS.py",
+        "script": "02_BUSCA_DADOS.py",
         "nome": "Busca de dados",
     },
     {
-        "script": "1_MAPA_ATIVOS.py",
+        "script": "01_MAPA_ATIVOS.py",
         "nome": "Mapa de ativos pos-busca",
     },
     {
-        "script": "0_AUDITA_QUALIDADE_DADOS.py",
+        "script": "02_01_AUDITA_QUALIDADE_DADOS.py",
         "nome": "Auditoria de qualidade dos dados",
     },
     {
-        "script": "3_GERA_FEATURES.py",
+        "script": "03_GERA_FEATURES.py",
         "nome": "Geracao de features",
     },
     {
-        "script": "4_GERA_LABELS.py",
+        "script": "04_GERA_LABELS.py",
         "nome": "Geracao de labels",
     },
     {
-        "script": "5_MONTA_DATASETS_ML.py",
+        "script": "05_MONTA_DATASETS_ML.py",
         "nome": "Montagem dos datasets ML",
     },
     {
-        "script": "6_WALK_FORWARD_TRAINING.py",
+        "script": "06_WALK_FORWARD_TRAINING.py",
         "nome": "Walk-forward training",
     },
     {
-        "script": "7_BACKTEST_PORTFOLIO.py",
+        "script": "07_BACKTEST_PORTFOLIO.py",
         "nome": "Backtest de portfolio",
     },
     {
-        "script": "8_EXPERIMENT_REGISTRY.py",
+        "script": "08_EXPERIMENT_REGISTRY.py",
         "nome": "Experiment registry formal",
     },
     {
-        "script": "0_MAPEAMENTO_DIRETORIOS.py",
+        "script": "00_03_MAPEAMENTO_DIRETORIOS.py",
         "nome": "Mapeamento de diretorios final",
     },
 ]
@@ -151,7 +154,7 @@ def resolver_python_executable() -> str:
     if env_python and Path(env_python).is_file():
         return str(Path(env_python))
 
-    machine_profile_path = BASE_JSON_DIR / "ARCHANGEL_MACHINE_PROFILE.json"
+    machine_profile_path = BASE_JSON_DIR / "00_01_MACHINE_PROFILE_LATEST.json"
     if machine_profile_path.is_file():
         try:
             with machine_profile_path.open("r", encoding="utf-8") as handle:
@@ -205,8 +208,8 @@ def salvar_run_all_report(
         "paths": {
             "rules_dir": str(BASE_DIR),
             "base_json_dir": str(BASE_JSON_DIR),
-            "run_report_path": str(BASE_JSON_DIR / "00_RUN_ALL_RUN_REPORT_LATEST.json"),
-            "run_report_latest_path": str(BASE_JSON_DIR / "00_RUN_ALL_RUN_REPORT_LATEST.json"),
+            "run_report_path": str(BASE_JSON_DIR / "00_RUN_ALL_REPORT_LATEST.json"),
+            "run_report_latest_path": str(BASE_JSON_DIR / "00_RUN_ALL_REPORT_LATEST.json"),
         },
         "config": {
             "parar_se_erro": PARAR_SE_ERRO,
@@ -227,7 +230,7 @@ def salvar_run_all_report(
         "selected_stages": stages_selecionadas,
         "results": resultados,
     }
-    latest_path = BASE_JSON_DIR / "00_RUN_ALL_RUN_REPORT_LATEST.json"
+    latest_path = BASE_JSON_DIR / "00_RUN_ALL_REPORT_LATEST.json"
     tmp_latest_path = latest_path.with_suffix(latest_path.suffix + ".tmp")
     tmp_latest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     substituir_arquivo_windows_safe(tmp_latest_path, latest_path)
@@ -271,8 +274,8 @@ def resumir_json_base(nome: str, papel: str, leitura: str) -> dict:
 
 def salvar_ai_context_index() -> None:
     BASE_JSON_DIR.mkdir(parents=True, exist_ok=True)
-    machine = carregar_json_base("ARCHANGEL_MACHINE_PROFILE.json")
-    python_env = carregar_json_base("ARCHANGEL_PYTHON_ENVIRONMENT.json")
+    machine = carregar_json_base("00_01_MACHINE_PROFILE_LATEST.json")
+    python_env = carregar_json_base("00_02_PYTHON_ENVIRONMENT_LATEST.json")
     machine_profile = machine.get("ai_compute_profile", {}) if isinstance(machine, dict) else {}
     gpu_cuda = machine_profile.get("gpu_cuda", {}) if isinstance(machine_profile, dict) else {}
     python_stack = machine_profile.get("python_stack", {}) if isinstance(machine_profile, dict) else {}
@@ -280,52 +283,46 @@ def salvar_ai_context_index() -> None:
     python_env_summary = python_env.get("summary", {}) if isinstance(python_env, dict) else {}
 
     files = [
-        resumir_json_base("00_RUN_ALL_RUN_REPORT_LATEST.json", "status geral do pipeline", "Comece por aqui para saber se a execução completa passou."),
-        resumir_json_base("RUN_STATE.json", "estado incremental da coleta", "Use para entender run_count, última coleta e política incremental."),
-        resumir_json_base("ARCHANGEL_MACHINE_PROFILE.json", "perfil de hardware e software", "Use para decidir CPU, RAM, GPU/CUDA e dependências disponíveis."),
-        resumir_json_base("ARCHANGEL_PYTHON_ENVIRONMENT.json", "ambiente Python/CUDA", "Use para saber pacotes instalados, CUDA validado e próximos passos de migração."),
-        resumir_json_base("BASE_ARQUIVOS.json", "inventário físico do projeto", "Use para localizar arquivos e diretórios do sistema."),
-        resumir_json_base("CATALOGO_ARCHANGEL_SERIES.json", "catálogo da etapa de dados", "Use para entender séries baixadas e integridade inicial."),
-        resumir_json_base("MAPA_ATIVOS.json", "mapa de ativos e universo", "Use para entender ativos, fontes, timeframes e arquivos Parquet."),
-        resumir_json_base("DATA_QUALITY_REPORT.json", "qualidade dos dados", "Use antes de features/datasets para entender bloqueios e cautelas ML."),
-        resumir_json_base("DATA_QUALITY_ROOT_CAUSE_REPORT.json", "triagem de causa-raiz", "Use para priorizar correções de qualidade."),
-        resumir_json_base("3_JSON_FEATURES.json", "manifesto de features", "Use para entender feature store, famílias, outputs e governança anti-leakage."),
-        resumir_json_base("3_FEATURES_RUN_REPORT_LATEST.json", "performance da geração de features", "Use para gargalos, memória, tempos por família e retry."),
-        resumir_json_base("3_FEATURES_CUDA_BENCHMARK_LATEST.json", "benchmark CPU vs CUDA da etapa 3", "Use para decidir se a migração CUDA de features melhora performance e preserva equivalência numérica."),
-        resumir_json_base("3_FEATURES_RETRY_PLAN_LATEST.json", "plano de retry de features", "Use para saber se há séries pendentes após a etapa 3."),
-        resumir_json_base("4_JSON_LABELS.json", "manifesto de labels", "Use para entender targets, políticas anti-leakage e outputs."),
-        resumir_json_base("4_LABELS_RUN_REPORT_LATEST.json", "performance da geração de labels", "Use para auditoria compacta e status por série."),
-        resumir_json_base("5_JSON_DATASETS_ML.json", "manifesto dos datasets ML", "Use para entender datasets treináveis e colunas permitidas."),
-        resumir_json_base("5_DATASETS_ML_RUN_REPORT_LATEST.json", "performance da montagem de datasets", "Use para status, linhas treináveis e gates ML."),
-        resumir_json_base("6_JSON_WALK_FORWARD.json", "resultados walk-forward", "Use para métricas OOS, modelos e experimentos."),
-        resumir_json_base("6_WALK_FORWARD_RUN_REPORT_LATEST.json", "performance do treino walk-forward", "Use para avaliar acurácia, erros e caminhos de modelos/predições."),
-        resumir_json_base("7_JSON_BACKTEST_PORTFOLIO.json", "backtest de portfolio", "Use para avaliar PnL líquido, custos, stops, take profit, sizing, drawdown e meta anual."),
-        resumir_json_base("7_BACKTEST_PORTFOLIO_RUN_REPORT_LATEST.json", "performance do backtest de portfolio", "Use para telemetria, tempos por fase, erros e caminhos de trades/equity."),
-        resumir_json_base("7_BACKTEST_PARAM_SEARCH_LATEST.json", "busca de parametros do backtest", "Use para comparar thresholds, stops, take profit, long-only vs long-short e filtros de custo."),
-        resumir_json_base("7_BACKTEST_PARAM_SEARCH_RUN_REPORT_LATEST.json", "performance da busca de parametros", "Use para auditar ranking, score e custo computacional da calibração da etapa 7."),
-        resumir_json_base("7_BACKTEST_VALIDATION_LATEST.json", "validação automatica do backtest", "Use para verificar schema, trades, equity, custos, fill ratio e consistência temporal."),
-        resumir_json_base("7_BACKTEST_STRESS_LATEST.json", "stress test do backtest", "Use para avaliar sensibilidade a custos, slippage, funding e piores regimes aproximados."),
-        resumir_json_base("7_EXPERIMENT_REGISTRY_LATEST.json", "registry de experimentos", "Use para versionar dataset, previsões, custos, config, métricas, validação e stress."),
-        resumir_json_base("8_JSON_EXPERIMENT_REGISTRY.json", "registry formal de experimentos", "Use como tabela mestre AI-friendly para rastrear dataset, features, labels, modelo, custos, risco, métricas e status."),
-        resumir_json_base("8_EXPERIMENT_REGISTRY_LATEST.json", "registry formal latest", "Use como primeira fonte para comparar experimentos e entender linhagem completa."),
-        resumir_json_base("8_EXPERIMENT_REGISTRY_RUN_REPORT_LATEST.json", "performance do registry formal", "Use para auditar geração do registry, caminhos persistidos e telemetria."),
-        resumir_json_base("8_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json", "validacao do registry formal", "Use para checar unicidade, artefatos, SQLite, Parquet e separacao entre pesquisa e aprovação."),
-        resumir_json_base("COST_MODEL.json", "modelo de custos", "Use para interpretar labels/datasets líquidos e premissas de trading."),
+        resumir_json_base("00_RUN_ALL_REPORT_LATEST.json", "status geral do pipeline", "Comece por aqui para saber se a execução completa passou."),
+        resumir_json_base("00_RUN_STATE_LATEST.json", "estado incremental da coleta", "Use para entender run_count, última coleta e política incremental."),
+        resumir_json_base("00_01_MACHINE_PROFILE_LATEST.json", "perfil de hardware e software", "Use para decidir CPU, RAM, GPU/CUDA e dependências disponíveis."),
+        resumir_json_base("00_02_PYTHON_ENVIRONMENT_LATEST.json", "ambiente Python/CUDA", "Use para saber pacotes instalados, CUDA validado e próximos passos de migração."),
+        resumir_json_base("00_03_BASE_ARQUIVOS_LATEST.json", "inventário físico do projeto", "Use para localizar arquivos e diretórios do sistema."),
+        resumir_json_base("01_CATALOGO_SERIES_LATEST.json", "catálogo da etapa de dados", "Use para entender séries baixadas e integridade inicial."),
+        resumir_json_base("01_MAPA_ATIVOS_LATEST.json", "mapa de ativos e universo", "Use para entender ativos, fontes, timeframes e arquivos Parquet."),
+        resumir_json_base("02_01_DATA_QUALITY_REPORT_LATEST.json", "qualidade dos dados", "Use antes de features/datasets para entender bloqueios e cautelas ML."),
+        resumir_json_base("02_01_DATA_QUALITY_ROOT_CAUSE_LATEST.json", "triagem de causa-raiz", "Use para priorizar correções de qualidade."),
+        resumir_json_base("03_FEATURES_CATALOG_LATEST.json", "manifesto de features", "Use para entender feature store, famílias, outputs e governança anti-leakage."),
+        resumir_json_base("03_FEATURES_RUN_REPORT_LATEST.json", "performance da geração de features", "Use para gargalos, memória, tempos por família e retry."),
+        resumir_json_base("03_01_FEATURES_CUDA_BENCHMARK_LATEST.json", "benchmark CPU vs CUDA da etapa 3", "Use para decidir se a migração CUDA de features melhora performance e preserva equivalência numérica."),
+        resumir_json_base("03_FEATURES_RETRY_PLAN_LATEST.json", "plano de retry de features", "Use para saber se há séries pendentes após a etapa 3."),
+        resumir_json_base("04_LABELS_CATALOG_LATEST.json", "manifesto de labels", "Use para entender targets, políticas anti-leakage e outputs."),
+        resumir_json_base("04_LABELS_RUN_REPORT_LATEST.json", "performance da geração de labels", "Use para auditoria compacta e status por série."),
+        resumir_json_base("05_DATASETS_ML_LATEST.json", "manifesto e performance dos datasets ML", "Use para entender datasets treináveis, colunas permitidas, status, linhas e gates ML."),
+        resumir_json_base("06_WALK_FORWARD_LATEST.json", "resultados e performance walk-forward", "Use para métricas OOS, modelos, acurácia, erros e caminhos de predições."),
+        resumir_json_base("07_BACKTEST_PORTFOLIO_LATEST.json", "backtest de portfolio e telemetria", "Use para avaliar PnL líquido, custos, stops, take profit, sizing, drawdown, tempos e caminhos de trades/equity."),
+        resumir_json_base("07_BACKTEST_PARAM_SEARCH_LATEST.json", "busca e performance de parametros do backtest", "Use para comparar thresholds, stops, take profit, long-only vs long-short, ranking, score e custo computacional."),
+        resumir_json_base("07_BACKTEST_VALIDATION_LATEST.json", "validação automatica do backtest", "Use para verificar schema, trades, equity, custos, fill ratio e consistência temporal."),
+        resumir_json_base("07_BACKTEST_STRESS_LATEST.json", "stress test do backtest", "Use para avaliar sensibilidade a custos, slippage, funding e piores regimes aproximados."),
+        resumir_json_base("07_BACKTEST_EXPERIMENT_REGISTRY_LATEST.json", "registry de experimentos", "Use para versionar dataset, previsões, custos, config, métricas, validação e stress."),
+        resumir_json_base("08_EXPERIMENT_REGISTRY_LATEST.json", "registry formal de experimentos e telemetria", "Use como tabela mestre AI-friendly para comparar experimentos, rastrear linhagem, status e caminhos persistidos."),
+        resumir_json_base("08_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json", "validacao do registry formal", "Use para checar unicidade, artefatos, SQLite, Parquet e separacao entre pesquisa e aprovação."),
+        resumir_json_base("00_COST_MODEL.json", "modelo de custos", "Use para interpretar labels/datasets líquidos e premissas de trading."),
     ]
 
-    run_all = carregar_json_base("00_RUN_ALL_RUN_REPORT_LATEST.json")
-    q = carregar_json_base("DATA_QUALITY_REPORT.json")
-    features = carregar_json_base("3_JSON_FEATURES.json")
-    labels = carregar_json_base("4_JSON_LABELS.json")
-    datasets = carregar_json_base("5_JSON_DATASETS_ML.json")
-    walk = carregar_json_base("6_JSON_WALK_FORWARD.json")
-    backtest = carregar_json_base("7_JSON_BACKTEST_PORTFOLIO.json")
-    backtest_search = carregar_json_base("7_BACKTEST_PARAM_SEARCH_LATEST.json")
-    backtest_validation = carregar_json_base("7_BACKTEST_VALIDATION_LATEST.json")
-    backtest_stress = carregar_json_base("7_BACKTEST_STRESS_LATEST.json")
-    experiment_registry = carregar_json_base("7_EXPERIMENT_REGISTRY_LATEST.json")
-    formal_experiment_registry = carregar_json_base("8_EXPERIMENT_REGISTRY_LATEST.json")
-    formal_experiment_registry_validation = carregar_json_base("8_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json")
+    run_all = carregar_json_base("00_RUN_ALL_REPORT_LATEST.json")
+    q = carregar_json_base("02_01_DATA_QUALITY_REPORT_LATEST.json")
+    features = carregar_json_base("03_FEATURES_CATALOG_LATEST.json")
+    labels = carregar_json_base("04_LABELS_CATALOG_LATEST.json")
+    datasets = carregar_json_base("05_DATASETS_ML_LATEST.json")
+    walk = carregar_json_base("06_WALK_FORWARD_LATEST.json")
+    backtest = carregar_json_base("07_BACKTEST_PORTFOLIO_LATEST.json")
+    backtest_search = carregar_json_base("07_BACKTEST_PARAM_SEARCH_LATEST.json")
+    backtest_validation = carregar_json_base("07_BACKTEST_VALIDATION_LATEST.json")
+    backtest_stress = carregar_json_base("07_BACKTEST_STRESS_LATEST.json")
+    experiment_registry = carregar_json_base("07_BACKTEST_EXPERIMENT_REGISTRY_LATEST.json")
+    formal_experiment_registry = carregar_json_base("08_EXPERIMENT_REGISTRY_LATEST.json")
+    formal_experiment_registry_validation = carregar_json_base("08_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json")
 
     payload = {
         "schema_version": "ARCHANGEL_AI_CONTEXT_INDEX_1.0",
@@ -340,30 +337,30 @@ def salvar_ai_context_index() -> None:
             "project_root": str(BASE_DIR.parent),
             "rules_dir": str(BASE_DIR),
             "base_json_dir": str(BASE_JSON_DIR),
-            "index_path": str(BASE_JSON_DIR / "ARCHANGEL_AI_CONTEXT_INDEX.json"),
+            "index_path": str(BASE_JSON_DIR / "99_AI_CONTEXT_INDEX_LATEST.json"),
             "python_executable": resolver_python_executable(),
         },
         "ai_reading_order": [
-            "ARCHANGEL_AI_CONTEXT_INDEX.json",
-            "00_RUN_ALL_RUN_REPORT_LATEST.json",
-            "RUN_STATE.json",
-            "ARCHANGEL_MACHINE_PROFILE.json",
-            "ARCHANGEL_PYTHON_ENVIRONMENT.json",
-            "MAPA_ATIVOS.json",
-            "DATA_QUALITY_REPORT.json",
-            "3_JSON_FEATURES.json",
-            "3_FEATURES_RUN_REPORT_LATEST.json",
-            "3_FEATURES_CUDA_BENCHMARK_LATEST.json",
-            "4_JSON_LABELS.json",
-            "5_JSON_DATASETS_ML.json",
-            "6_JSON_WALK_FORWARD.json",
-            "7_JSON_BACKTEST_PORTFOLIO.json",
-            "7_BACKTEST_PARAM_SEARCH_LATEST.json",
-            "7_BACKTEST_VALIDATION_LATEST.json",
-            "7_BACKTEST_STRESS_LATEST.json",
-            "7_EXPERIMENT_REGISTRY_LATEST.json",
-            "8_EXPERIMENT_REGISTRY_LATEST.json",
-            "8_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json",
+            "99_AI_CONTEXT_INDEX_LATEST.json",
+            "00_RUN_ALL_REPORT_LATEST.json",
+            "00_RUN_STATE_LATEST.json",
+            "00_01_MACHINE_PROFILE_LATEST.json",
+            "00_02_PYTHON_ENVIRONMENT_LATEST.json",
+            "01_MAPA_ATIVOS_LATEST.json",
+            "02_01_DATA_QUALITY_REPORT_LATEST.json",
+            "03_FEATURES_CATALOG_LATEST.json",
+            "03_FEATURES_RUN_REPORT_LATEST.json",
+            "03_01_FEATURES_CUDA_BENCHMARK_LATEST.json",
+            "04_LABELS_CATALOG_LATEST.json",
+            "05_DATASETS_ML_LATEST.json",
+            "06_WALK_FORWARD_LATEST.json",
+            "07_BACKTEST_PORTFOLIO_LATEST.json",
+            "07_BACKTEST_PARAM_SEARCH_LATEST.json",
+            "07_BACKTEST_VALIDATION_LATEST.json",
+            "07_BACKTEST_STRESS_LATEST.json",
+            "07_BACKTEST_EXPERIMENT_REGISTRY_LATEST.json",
+            "08_EXPERIMENT_REGISTRY_LATEST.json",
+            "08_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json",
         ],
         "summary": {
             "pipeline_status": ((run_all.get("summary") or {}).get("status") if isinstance(run_all, dict) else None),
@@ -432,26 +429,26 @@ def salvar_ai_context_index() -> None:
         "files": files,
         "recommendations_for_codex": [
             "Use os arquivos *_LATEST.json no BASE_JSON para estado atual; histórico por execução fica nos diretórios _logs.",
-            "Use 5_JSON_DATASETS_ML.allowed_feature_columns como fonte autorizada de features para treino.",
+            "Use 05_DATASETS_ML_LATEST.allowed_feature_columns como fonte autorizada de features para treino.",
             "Nunca use colunas label_, meta_ ou quality_ como features, salvo metadados explicitamente permitidos pelo manifesto.",
             "Trate ML_CAUTION_ACCEPTABLE como treinável com registro explícito e ML_BLOCKED como bloqueio.",
             "Consulte performance_summary antes de mudar paralelismo ou CUDA.",
             "Use backend CUDA por detecção de runtime, com fallback CPU, sem hard-code para a GPU atual.",
-            "Antes de execução em testnet, valide 7_JSON_BACKTEST_PORTFOLIO.json para PnL líquido, custos, drawdown e sizing.",
-            "Use 7_BACKTEST_PARAM_SEARCH_LATEST.json apenas como diagnóstico de sensibilidade; ele não aprova testnet.",
-            "Use 7_BACKTEST_VALIDATION_LATEST.json, 7_BACKTEST_STRESS_LATEST.json e 7_EXPERIMENT_REGISTRY_LATEST.json para rastreabilidade da etapa 7.",
-            "Use 8_EXPERIMENT_REGISTRY_LATEST.json como registry formal antes de ablação, comparação de hipóteses, retreino ou preparação de testnet.",
+            "Antes de execução em testnet, valide 07_BACKTEST_PORTFOLIO_LATEST.json para PnL líquido, custos, drawdown e sizing.",
+            "Use 07_BACKTEST_PARAM_SEARCH_LATEST.json apenas como diagnóstico de sensibilidade; ele não aprova testnet.",
+            "Use 07_BACKTEST_VALIDATION_LATEST.json, 07_BACKTEST_STRESS_LATEST.json e 07_BACKTEST_EXPERIMENT_REGISTRY_LATEST.json para rastreabilidade da etapa 7.",
+            "Use 08_EXPERIMENT_REGISTRY_LATEST.json como registry formal antes de ablação, comparação de hipóteses, retreino ou preparação de testnet.",
         ],
     }
 
-    index_path = BASE_JSON_DIR / "ARCHANGEL_AI_CONTEXT_INDEX.json"
+    index_path = BASE_JSON_DIR / "99_AI_CONTEXT_INDEX_LATEST.json"
     tmp_path = index_path.with_suffix(index_path.suffix + ".tmp")
     tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     substituir_arquivo_windows_safe(tmp_path, index_path)
 
 
 def atualizar_roadmap_status() -> None:
-    script = BASE_DIR / "0_ATUALIZA_ROADMAP_STATUS.py"
+    script = BASE_DIR / "09_ATUALIZA_ROADMAP_STATUS.py"
     if not script.is_file():
         print(f"[ROADMAP] Script nao encontrado: {script}")
         return
@@ -503,8 +500,8 @@ def mostrar_menu_etapas() -> None:
     linha("-")
     print("Atalhos:")
     print("  Enter ou tudo   = executa todas as etapas")
-    print("  2               = executa em sequencia ate 2_BUSCA_DADOS.py")
-    print("  3               = executa em sequencia ate 3_GERA_FEATURES.py")
+    print("  2               = executa em sequencia ate 02_BUSCA_DADOS.py")
+    print("  3               = executa em sequencia ate 03_GERA_FEATURES.py")
     print("  #7              = executa em sequencia ate a sequencia 7 do menu")
     print("  lista #4,#7,#8  = executa somente essas sequencias, na ordem original")
     print("  4-8             = executa o intervalo de sequencias do menu")
@@ -522,22 +519,22 @@ def resolver_indice_fim(token: str) -> int:
     token = token.removeprefix("until ").strip()
 
     aliases = {
-        "dados": "2_BUSCA_DADOS.py",
-        "busca": "2_BUSCA_DADOS.py",
-        "busca_dados": "2_BUSCA_DADOS.py",
-        "features": "3_GERA_FEATURES.py",
-        "gera_features": "3_GERA_FEATURES.py",
-        "labels": "4_GERA_LABELS.py",
-        "gera_labels": "4_GERA_LABELS.py",
-        "datasets": "5_MONTA_DATASETS_ML.py",
-        "ml": "5_MONTA_DATASETS_ML.py",
-        "walk_forward": "6_WALK_FORWARD_TRAINING.py",
-        "treino": "6_WALK_FORWARD_TRAINING.py",
-        "backtest": "7_BACKTEST_PORTFOLIO.py",
-        "portfolio": "7_BACKTEST_PORTFOLIO.py",
-        "registry": "8_EXPERIMENT_REGISTRY.py",
-        "experimentos": "8_EXPERIMENT_REGISTRY.py",
-        "experiment_registry": "8_EXPERIMENT_REGISTRY.py",
+        "dados": "02_BUSCA_DADOS.py",
+        "busca": "02_BUSCA_DADOS.py",
+        "busca_dados": "02_BUSCA_DADOS.py",
+        "features": "03_GERA_FEATURES.py",
+        "gera_features": "03_GERA_FEATURES.py",
+        "labels": "04_GERA_LABELS.py",
+        "gera_labels": "04_GERA_LABELS.py",
+        "datasets": "05_MONTA_DATASETS_ML.py",
+        "ml": "05_MONTA_DATASETS_ML.py",
+        "walk_forward": "06_WALK_FORWARD_TRAINING.py",
+        "treino": "06_WALK_FORWARD_TRAINING.py",
+        "backtest": "07_BACKTEST_PORTFOLIO.py",
+        "portfolio": "07_BACKTEST_PORTFOLIO.py",
+        "registry": "08_EXPERIMENT_REGISTRY.py",
+        "experimentos": "08_EXPERIMENT_REGISTRY.py",
+        "experiment_registry": "08_EXPERIMENT_REGISTRY.py",
     }
 
     if token.startswith("#") and token[1:].isdigit():
@@ -549,11 +546,13 @@ def resolver_indice_fim(token: str) -> int:
     alvo_script = aliases.get(token)
 
     if alvo_script is None and token.isdigit():
-        prefixo = f"{token}_"
+        prefixos = [f"{token}_"]
+        if len(token) == 1:
+            prefixos.append(f"0{token}_")
         candidatos = [
             indice
             for indice, stage in enumerate(STAGES, start=1)
-            if stage["script"].startswith(prefixo)
+            if any(stage["script"].startswith(prefixo) for prefixo in prefixos)
         ]
         if candidatos:
             return candidatos[-1]

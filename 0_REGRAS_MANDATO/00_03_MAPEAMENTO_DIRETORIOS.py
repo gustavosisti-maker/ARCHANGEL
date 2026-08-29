@@ -3,10 +3,10 @@
 ARCHANGEL v1 - MAPEAMENTO DE DIRETÓRIOS E ARQUIVOS
 
 Arquivo:
-    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\0_MAPEAMENTO_DIRETORIOS.py
+    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\00_03_MAPEAMENTO_DIRETORIOS.py
 
 Saída:
-    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\BASE_JSON\\BASE_ARQUIVOS.json
+    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\BASE_JSON\\00_03_BASE_ARQUIVOS_LATEST.json
 
 Objetivo:
     Criar uma base JSON completa com:
@@ -18,7 +18,7 @@ Objetivo:
         - Caminhos relevantes do sistema ARCHANGEL
 
 Uso:
-    python <PROJECT_ROOT>\\0_REGRAS_MANDATO\\0_MAPEAMENTO_DIRETORIOS.py
+    python <PROJECT_ROOT>\\0_REGRAS_MANDATO\\00_03_MAPEAMENTO_DIRETORIOS.py
 
 Observação:
     Este script é pensado para retroalimentação AI e para permitir que
@@ -44,7 +44,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 RULES_DIR = ROOT_DIR / "0_REGRAS_MANDATO"
 BASE_JSON_DIR = RULES_DIR / "BASE_JSON"
 
-OUTPUT_JSON_NAME = "BASE_ARQUIVOS.json"
+OUTPUT_JSON_NAME = "00_03_BASE_ARQUIVOS_LATEST.json"
 OUTPUT_JSON_PATH = BASE_JSON_DIR / OUTPUT_JSON_NAME
 
 SYSTEM_NAME = "ARCHANGEL"
@@ -57,7 +57,7 @@ SCHEMA_VERSION = "ARCHANGEL_DIRECTORY_FILE_MAP_1.0"
 # =============================================================================
 
 # Diretórios operacionais grandes ficam fora do inventário AI para evitar
-# BASE_ARQUIVOS.json gigante e pouco útil para o Codex.
+# 00_03_BASE_ARQUIVOS_LATEST.json gigante e pouco útil para o Codex.
 EXCLUDED_DIR_NAMES = {
     "__pycache__",
     "_CACHE",

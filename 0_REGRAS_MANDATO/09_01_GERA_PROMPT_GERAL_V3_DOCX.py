@@ -173,13 +173,13 @@ def add_page_break(doc):
 
 
 def build_doc():
-    ai_index = load_json("ARCHANGEL_AI_CONTEXT_INDEX.json")
-    run_all = load_json("00_RUN_ALL_RUN_REPORT_LATEST.json")
-    dq = load_json("DATA_QUALITY_REPORT.json")
-    ds = load_json("5_JSON_DATASETS_ML.json")
-    wf = load_json("6_JSON_WALK_FORWARD.json")
-    pyenv = load_json("ARCHANGEL_PYTHON_ENVIRONMENT.json")
-    cuda_bench = load_json("3_FEATURES_CUDA_BENCHMARK_LATEST.json")
+    ai_index = load_json("99_AI_CONTEXT_INDEX_LATEST.json")
+    run_all = load_json("00_RUN_ALL_REPORT_LATEST.json")
+    dq = load_json("02_01_DATA_QUALITY_REPORT_LATEST.json")
+    ds = load_json("05_DATASETS_ML_LATEST.json")
+    wf = load_json("06_WALK_FORWARD_LATEST.json")
+    pyenv = load_json("00_02_PYTHON_ENVIRONMENT_LATEST.json")
+    cuda_bench = load_json("03_01_FEATURES_CUDA_BENCHMARK_LATEST.json")
 
     s = ai_index.get("summary", {})
     dq_s = dq.get("summary", {})
@@ -261,7 +261,7 @@ def build_doc():
         ("Feature/ML layer", "Operacional", "Features convencionais ainda dominam", "Expandir features não convencionais com benchmark e ablação."),
         ("Labels", "Operacional", "Label pode não capturar execução real", "Testar variações triple barrier, meta-labeling e labels líquidos."),
         ("Walk-forward", "Operacional com CUDA", "Balanced accuracy ainda modesta", "Adicionar purging/embargo mais explícito e salvar análises por regime."),
-        ("Backtest layer", "Próximo gargalo", "PnL sem execução realista engana", "Construir 7_BACKTEST_PORTFOLIO.py robusto."),
+        ("Backtest layer", "Próximo gargalo", "PnL sem execução realista engana", "Construir 07_BACKTEST_PORTFOLIO.py robusto."),
         ("Risk engine", "A desenhar", "Drawdown e alavancagem", "Criar limites de exposição, sizing, stop global e kill switch."),
         ("Execution layer", "Ainda não ligar live", "Risco operacional", "Criar execução apenas em testnet/sandbox."),
         ("Monitoring", "Pendente", "Sem reconciliação contínua", "Criar logs, alertas e reconciliação exchange vs sistema."),
@@ -342,8 +342,8 @@ def build_doc():
     for item in [
         "Rerodar etapa 3 com CUDA forçada apenas em teste controlado: ARCHANGEL_FEATURE_CUDA_MODE=cuda e ARCHANGEL_FEATURE_CUDA_MAX_WORKERS=2.",
         "Comparar o run completo da etapa 3 com o benchmark atual antes de tornar CUDA padrão.",
-        "Conferir se 3_FEATURES_CUDA_BENCHMARK_LATEST.json continua OK após qualquer mudança em features.",
-        "Garantir que toda nova etapa grave JSON útil em BASE_JSON e seja incluída no ARCHANGEL_AI_CONTEXT_INDEX.json.",
+        "Conferir se 03_01_FEATURES_CUDA_BENCHMARK_LATEST.json continua OK após qualquer mudança em features.",
+        "Garantir que toda nova etapa grave JSON útil em BASE_JSON e seja incluída no 99_AI_CONTEXT_INDEX_LATEST.json.",
         "Criar módulo de execução testnet com dry-run, logs e kill switch antes de qualquer ordem real.",
         "Implementar backtest de portfólio antes de aumentar o universo de modelos.",
         "Adicionar novas features em blocos pequenos: hipótese, implementação, benchmark, ablação, walk-forward, stress de custos.",
@@ -353,11 +353,11 @@ def build_doc():
 
     add_h(doc, "12. Prompt Operacional Para Próximas Sessões Com Codex", 1)
     add_para(doc, "Sempre que o projeto for recalibrado, começar lendo este documento e depois o índice mestre:")
-    add_bullet(doc, str(BASE_JSON_DIR / "ARCHANGEL_AI_CONTEXT_INDEX.json"))
+    add_bullet(doc, str(BASE_JSON_DIR / "99_AI_CONTEXT_INDEX_LATEST.json"))
     add_para(doc, "Pedido padrão para o Codex:")
     add_para(
         doc,
-        "Leia o ARCHANGEL_AI_CONTEXT_INDEX.json, confira os JSONs *_LATEST no BASE_JSON, identifique o estado atual do pipeline, preserve governança anti-leakage e proponha a próxima mudança incremental com teste, benchmark e relatório JSON. Não pule para live trading; execução deve ser apenas em testnet/sandbox até aprovação explícita.",
+        "Leia o 99_AI_CONTEXT_INDEX_LATEST.json, confira os JSONs *_LATEST no BASE_JSON, identifique o estado atual do pipeline, preserve governança anti-leakage e proponha a próxima mudança incremental com teste, benchmark e relatório JSON. Não pule para live trading; execução deve ser apenas em testnet/sandbox até aprovação explícita.",
     )
 
     add_h(doc, "13. Decisão Atual", 1)

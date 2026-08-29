@@ -1,6 +1,6 @@
 # ARCHANGEL - dependencias recomendadas para ML/backtest/experimentos
 #
-# Estado observado em ARCHANGEL_MACHINE_PROFILE.json:
+# Estado observado em 00_01_MACHINE_PROFILE_LATEST.json:
 # - CPU: 12 cores fisicos / 24 threads
 # - RAM: ~128 GB
 # - GPU NVIDIA detectada: ~6 GB VRAM, CUDA provavelmente disponivel

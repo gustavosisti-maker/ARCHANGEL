@@ -15,11 +15,11 @@ Melhorias vs versão anterior:
     - Mais governança anti-leakage.
 
 Entradas:
-    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\BASE_JSON\\MAPA_ATIVOS.json
+    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\BASE_JSON\\01_MAPA_ATIVOS_LATEST.json
 
 Saídas:
     <PROJECT_ROOT>\\3_FEATURES\\FEATURES_PARQUET\\...
-    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\BASE_JSON\\3_JSON_FEATURES.json
+    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\BASE_JSON\\03_FEATURES_CATALOG_LATEST.json
     <PROJECT_ROOT>\\0_REGRAS_MANDATO\\BASE_EXCEL\\3_FEATURES.xlsx
     <PROJECT_ROOT>\\3_FEATURES\\_logs\\...
 
@@ -84,8 +84,8 @@ BASE_JSON_DIR = BASE_REGRAS_DIR / "BASE_JSON"
 BASE_EXCEL_DIR = BASE_REGRAS_DIR / "BASE_EXCEL"
 
 
-MAPA_ATIVOS_PATH = BASE_JSON_DIR / "MAPA_ATIVOS.json"
-FEATURES_JSON_PATH = BASE_JSON_DIR / "3_JSON_FEATURES.json"
+MAPA_ATIVOS_PATH = BASE_JSON_DIR / "01_MAPA_ATIVOS_LATEST.json"
+FEATURES_JSON_PATH = BASE_JSON_DIR / "03_FEATURES_CATALOG_LATEST.json"
 FEATURES_EXCEL_PATH = BASE_EXCEL_DIR / "3_FEATURES.xlsx"
 
 SCRIPT_NAME = "3_GERA_FEATURES_V3_FAST_AUDITED.py"
@@ -100,7 +100,7 @@ RUN_ID = os.environ.get("ARCHANGEL_RUN_ID") or datetime.now().strftime("%Y%m%d_%
 os.environ.setdefault("ARCHANGEL_RUN_ID", RUN_ID)
 INCREMENTAL_AUDIT_PATH = FEATURES_LOG_DIR / f"3_FEATURES_RUN_AUDIT_INCREMENTAL_{RUN_ID}.jsonl"
 RUN_REPORT_PATH = FEATURES_LOG_DIR / f"3_FEATURES_RUN_REPORT_{RUN_ID}.json"
-RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "3_FEATURES_RUN_REPORT_LATEST.json"
+RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "03_FEATURES_RUN_REPORT_LATEST.json"
 RUN_REPORT_BASE_JSON_PATH = RUN_REPORT_LATEST_PATH
 
 TIMEZONE_LOCAL = "Asia/Dubai"
@@ -131,9 +131,9 @@ TIMEZONE_POLICY = {
 BASES_DIR = ROOT_DIR / "2_BASES"
 BASES_QUALITY_DIR = BASES_DIR / "_quality"
 
-DATA_QUALITY_REPORT_PATH = BASE_JSON_DIR / "DATA_QUALITY_REPORT.json"
-COST_MODEL_PATH = BASE_JSON_DIR / "COST_MODEL.json"
-PYTHON_ENVIRONMENT_PATH = BASE_JSON_DIR / "ARCHANGEL_PYTHON_ENVIRONMENT.json"
+DATA_QUALITY_REPORT_PATH = BASE_JSON_DIR / "02_01_DATA_QUALITY_REPORT_LATEST.json"
+COST_MODEL_PATH = BASE_JSON_DIR / "00_COST_MODEL.json"
+PYTHON_ENVIRONMENT_PATH = BASE_JSON_DIR / "00_02_PYTHON_ENVIRONMENT_LATEST.json"
 
 INPUT_CONTRACT_VERSION = "ARCHANGEL_OHLCV_INPUT_CONTRACT_1.0"
 QUALITY_GATE_VERSION = "ARCHANGEL_DATA_QUALITY_GATE_1.0"
@@ -294,7 +294,7 @@ MAX_RETRY_ATTEMPTS_PER_SERIES = int(os.environ.get("ARCHANGEL_MAX_RETRY_ATTEMPTS
 RETRY_FAILED_ONLY_FROM_REPORT = os.environ.get("ARCHANGEL_RETRY_FAILED_ONLY_FROM_REPORT")
 RETRY_OUTPUT_JSON_PATH = FEATURES_LOG_DIR / f"3_FEATURES_RETRY_PLAN_{RUN_ID}.json"
 RETRY_OUTPUT_CSV_PATH = FEATURES_LOG_DIR / f"3_FEATURES_RETRY_PLAN_{RUN_ID}.csv"
-RETRY_OUTPUT_LATEST_PATH = BASE_JSON_DIR / "3_FEATURES_RETRY_PLAN_LATEST.json"
+RETRY_OUTPUT_LATEST_PATH = BASE_JSON_DIR / "03_FEATURES_RETRY_PLAN_LATEST.json"
 RETRY_OUTPUT_BASE_JSON_PATH = RETRY_OUTPUT_LATEST_PATH
 
 ENABLE_PROGRESS_HEARTBEAT = True
@@ -1903,7 +1903,7 @@ def resolve_feature_compute_backend(timeframe: Optional[str], row_count: int) ->
         and cupy_status.get("cuda_available")
     )
     if not cupy_ready:
-        plan["reason"] = "CuPy/CUDA não está validado em ARCHANGEL_PYTHON_ENVIRONMENT.json."
+        plan["reason"] = "CuPy/CUDA não está validado em 00_02_PYTHON_ENVIRONMENT_LATEST.json."
         return plan
 
     if FEATURE_CUDA_MODE == "auto":
@@ -3430,7 +3430,7 @@ def apply_feature_validity_flags(
         Marca warm-up e linhas válidas para ML.
 
     Não remove linhas.
-    O filtro final será feito no 5_MONTA_DATASETS_ML.py.
+    O filtro final será feito no 05_MONTA_DATASETS_ML.py.
     """
     if not ENABLE_FEATURE_VALIDITY_FLAGS:
         return df
@@ -3487,7 +3487,7 @@ def apply_feature_validity_flags(
 def apply_ml_ready_schema_flags(df: pd.DataFrame) -> pd.DataFrame:
     """
     Fase 8:
-        Prepara a ponte para 5_MONTA_DATASETS_ML.py.
+        Prepara a ponte para 05_MONTA_DATASETS_ML.py.
     """
     if not ENABLE_ML_READY_SCHEMA_FLAGS:
         return df
@@ -4798,7 +4798,7 @@ def build_retry_plan_payload(results: List[Dict[str, Any]], selected: List[Dict[
         "retry_mode_env": "ARCHANGEL_RETRY_FAILED_ONLY_FROM_REPORT",
         "retry_mode_example": (
             f"$env:ARCHANGEL_RETRY_FAILED_ONLY_FROM_REPORT=\"{path_to_str(RUN_REPORT_PATH)}\"; "
-            f"& \"python\" \"{path_to_str(BASE_REGRAS_DIR / '3_GERA_FEATURES.py')}\""
+            f"& \"python\" \"{path_to_str(BASE_REGRAS_DIR / '03_GERA_FEATURES.py')}\""
         ),
         "summary": {
             "series_selected": len(selected),
@@ -5457,15 +5457,15 @@ def build_features_json_payload(
 
         "recommended_next_layer": {
             "datasets_ml": (
-                "Próxima etapa prioritária: criar 5_MONTA_DATASETS_ML.py para juntar "
+                "Próxima etapa prioritária: criar 05_MONTA_DATASETS_ML.py para juntar "
                 "features, labels, custos, filtros de qualidade e cross-asset regressors."
             ),
             "cross_asset_features": (
-                "Cross-asset regressors devem ser montados no 5_MONTA_DATASETS_ML.py "
+                "Cross-asset regressors devem ser montados no 05_MONTA_DATASETS_ML.py "
                 "via timestamp_utc_ms, não dentro da feature store individual."
             ),
             "cost_model": (
-                "Usar COST_MODEL.json em 5_MONTA_DATASETS_ML.py e 7_BACKTEST_PORTFOLIO.py "
+                "Usar 00_COST_MODEL.json em 05_MONTA_DATASETS_ML.py e 07_BACKTEST_PORTFOLIO.py "
                 "para aplicar fees, slippage, funding e impacto."
             ),
             "labels": (
@@ -6347,7 +6347,7 @@ def main() -> None:
 
     if not MAPA_ATIVOS_PATH.exists():
         raise FileNotFoundError(
-            f"MAPA_ATIVOS.json não encontrado em: {MAPA_ATIVOS_PATH}. "
+            f"01_MAPA_ATIVOS_LATEST.json não encontrado em: {MAPA_ATIVOS_PATH}. "
             "Rode antes o script de geração do mapa de ativos."
         )
 
@@ -6420,7 +6420,7 @@ def main() -> None:
 
 
     if not selected:
-        raise RuntimeError("Nenhuma série selecionada. Verifique filtros e MAPA_ATIVOS.json.")
+        raise RuntimeError("Nenhuma série selecionada. Verifique filtros e 01_MAPA_ATIVOS_LATEST.json.")
 
     results: List[Dict[str, Any]] = []
 

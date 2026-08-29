@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Auditoria formal de qualidade da camada de dados ARCHANGEL.
 
-Lê o MAPA_ATIVOS.json, valida os Parquets sem alterá-los e grava um contrato de
+Lê o 01_MAPA_ATIVOS_LATEST.json, valida os Parquets sem alterá-los e grava um contrato de
 qualidade consumido pela etapa de features em BASE_JSON.
 """
 
@@ -24,10 +24,10 @@ import pyarrow.parquet as pq
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BASE_JSON_DIR = PROJECT_ROOT / "0_REGRAS_MANDATO" / "BASE_JSON"
-MAPA_ATIVOS_PATH = BASE_JSON_DIR / "MAPA_ATIVOS.json"
+MAPA_ATIVOS_PATH = BASE_JSON_DIR / "01_MAPA_ATIVOS_LATEST.json"
 QUALITY_DIR = BASE_JSON_DIR
-QUALITY_REPORT_PATH = QUALITY_DIR / "DATA_QUALITY_REPORT.json"
-QUALITY_ROOT_CAUSE_REPORT_PATH = QUALITY_DIR / "DATA_QUALITY_ROOT_CAUSE_REPORT.json"
+QUALITY_REPORT_PATH = QUALITY_DIR / "02_01_DATA_QUALITY_REPORT_LATEST.json"
+QUALITY_ROOT_CAUSE_REPORT_PATH = QUALITY_DIR / "02_01_DATA_QUALITY_ROOT_CAUSE_LATEST.json"
 QUALITY_ROOT_CAUSE_CSV_PATH = PROJECT_ROOT / "2_BASES" / "_quality" / "DATA_QUALITY_ROOT_CAUSE_TRIAGE.csv"
 QUALITY_CHUNKS_DIR = BASE_JSON_DIR / "DATA_QUALITY_CHUNKS"
 
@@ -920,7 +920,7 @@ def load_catalog() -> list[Dict[str, Any]]:
 
     catalog = mapa.get("series_catalog", [])
     if not isinstance(catalog, list):
-        raise ValueError("series_catalog inválido no MAPA_ATIVOS.json")
+        raise ValueError("series_catalog inválido no 01_MAPA_ATIVOS_LATEST.json")
     return catalog
 
 
@@ -1038,11 +1038,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Auditoria formal de qualidade dos Parquets ARCHANGEL.")
     parser.add_argument("--start", type=int, help="Índice inicial inclusivo do bloco.")
     parser.add_argument("--end", type=int, help="Índice final exclusivo do bloco.")
-    parser.add_argument("--merge", action="store_true", help="Consolida os blocos em DATA_QUALITY_REPORT.json.")
+    parser.add_argument("--merge", action="store_true", help="Consolida os blocos em 02_01_DATA_QUALITY_REPORT_LATEST.json.")
     parser.add_argument(
         "--enrich-existing",
         action="store_true",
-        help="Reclassifica o DATA_QUALITY_REPORT.json existente com causa-raiz e política ML.",
+        help="Reclassifica o 02_01_DATA_QUALITY_REPORT_LATEST.json existente com causa-raiz e política ML.",
     )
     args = parser.parse_args()
     main(start=args.start, end=args.end, merge=args.merge, enrich_existing=args.enrich_existing)

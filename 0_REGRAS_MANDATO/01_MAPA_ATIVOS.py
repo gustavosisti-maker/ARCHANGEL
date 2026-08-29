@@ -3,10 +3,10 @@
 ARCHANGEL v1 - MAPA_ATIVOS.py
 
 Arquivo:
-    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\1_MAPA_ATIVOS.py
+    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\01_MAPA_ATIVOS.py
 
 Saída única:
-    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\BASE_JSON\\MAPA_ATIVOS.json
+    <PROJECT_ROOT>\\0_REGRAS_MANDATO\\BASE_JSON\\01_MAPA_ATIVOS_LATEST.json
 
 Objetivo:
     Mapear dinamicamente toda a base de dados local do ARCHANGEL para alimentar
@@ -59,7 +59,7 @@ import pandas as pd
 ROOT_DIR = Path(__file__).resolve().parent.parent
 BASE_JSON_DIR = ROOT_DIR / "0_REGRAS_MANDATO" / "BASE_JSON"
 
-OUTPUT_JSON_NAME = "MAPA_ATIVOS.json"
+OUTPUT_JSON_NAME = "01_MAPA_ATIVOS_LATEST.json"
 OUTPUT_JSON_PATH = BASE_JSON_DIR / OUTPUT_JSON_NAME
 
 BASE_DATA_DIR_CANDIDATES = [

@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE_JSON = ROOT / "0_REGRAS_MANDATO" / "BASE_JSON"
-OUT_PATH = BASE_JSON / "ARCHANGEL_PYTHON_ENVIRONMENT.json"
+OUT_PATH = BASE_JSON / "00_02_PYTHON_ENVIRONMENT_LATEST.json"
 os.environ.setdefault("CUPY_CACHE_DIR", str(ROOT / "_CACHE" / "cupy_kernel_cache"))
 os.environ.setdefault("NUMBA_CACHE_DIR", str(ROOT / "_CACHE" / "numba_cache"))
 

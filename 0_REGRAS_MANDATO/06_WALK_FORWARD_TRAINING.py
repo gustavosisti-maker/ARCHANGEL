@@ -28,10 +28,10 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 RULES_DIR = ROOT_DIR / "0_REGRAS_MANDATO"
 BASE_JSON_DIR = RULES_DIR / "BASE_JSON"
 
-DATASETS_JSON_PATH = BASE_JSON_DIR / "5_JSON_DATASETS_ML.json"
-WALK_FORWARD_JSON_PATH = BASE_JSON_DIR / "6_JSON_WALK_FORWARD.json"
-MACHINE_PROFILE_PATH = BASE_JSON_DIR / "ARCHANGEL_MACHINE_PROFILE.json"
-PYTHON_ENVIRONMENT_PATH = BASE_JSON_DIR / "ARCHANGEL_PYTHON_ENVIRONMENT.json"
+DATASETS_JSON_PATH = BASE_JSON_DIR / "05_DATASETS_ML_LATEST.json"
+WALK_FORWARD_JSON_PATH = BASE_JSON_DIR / "06_WALK_FORWARD_LATEST.json"
+MACHINE_PROFILE_PATH = BASE_JSON_DIR / "00_01_MACHINE_PROFILE_LATEST.json"
+PYTHON_ENVIRONMENT_PATH = BASE_JSON_DIR / "00_02_PYTHON_ENVIRONMENT_LATEST.json"
 
 EXPERIMENTS_DIR = ROOT_DIR / "6_EXPERIMENTS"
 CONFIGS_DIR = EXPERIMENTS_DIR / "configs"
@@ -40,9 +40,9 @@ MODELS_DIR = EXPERIMENTS_DIR / "models"
 PREDICTIONS_DIR = EXPERIMENTS_DIR / "predictions"
 LOGS_DIR = EXPERIMENTS_DIR / "_logs"
 REGISTRY_PATH = EXPERIMENTS_DIR / "experiments.sqlite"
-RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "6_WALK_FORWARD_RUN_REPORT_LATEST.json"
+RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "06_WALK_FORWARD_LATEST.json"
 
-SCRIPT_NAME = "6_WALK_FORWARD_TRAINING.py"
+SCRIPT_NAME = "06_WALK_FORWARD_TRAINING.py"
 SCHEMA_VERSION = "ARCHANGEL_WALK_FORWARD_1.0"
 RUN_ID = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -805,7 +805,7 @@ def main() -> int:
             "run_report_latest_path": str(RUN_REPORT_LATEST_PATH),
         },
         "policy": {
-            "model_allowed_feature_source": "5_JSON_DATASETS_ML.allowed_feature_columns",
+            "model_allowed_feature_source": "05_DATASETS_ML_LATEST.allowed_feature_columns",
             "forbidden_prefixes": ["label_", "meta_", "quality_"],
             "purging_embargo": "Train rows inside target horizon before test start are removed; test interval is never used in train.",
             "oos_rule": "Only predictions on walk-forward test windows are saved.",

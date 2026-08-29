@@ -23,17 +23,17 @@ import pyarrow.parquet as pq
 # 1. CONFIGURACAO
 # =============================================================================
 
-SCRIPT_NAME = "7_BACKTEST_PORTFOLIO.py"
+SCRIPT_NAME = "07_BACKTEST_PORTFOLIO.py"
 SCHEMA_VERSION = "ARCHANGEL_BACKTEST_PORTFOLIO_1.0"
 
 RULES_DIR = Path(__file__).resolve().parent
 ROOT_DIR = RULES_DIR.parent
 BASE_JSON_DIR = RULES_DIR / "BASE_JSON"
 
-WALK_FORWARD_JSON_PATH = BASE_JSON_DIR / "6_JSON_WALK_FORWARD.json"
-DATASETS_JSON_PATH = BASE_JSON_DIR / "5_JSON_DATASETS_ML.json"
-COST_MODEL_PATH = BASE_JSON_DIR / "COST_MODEL.json"
-AI_CONTEXT_INDEX_PATH = BASE_JSON_DIR / "ARCHANGEL_AI_CONTEXT_INDEX.json"
+WALK_FORWARD_JSON_PATH = BASE_JSON_DIR / "06_WALK_FORWARD_LATEST.json"
+DATASETS_JSON_PATH = BASE_JSON_DIR / "05_DATASETS_ML_LATEST.json"
+COST_MODEL_PATH = BASE_JSON_DIR / "00_COST_MODEL.json"
+AI_CONTEXT_INDEX_PATH = BASE_JSON_DIR / "99_AI_CONTEXT_INDEX_LATEST.json"
 
 BACKTEST_DIR = ROOT_DIR / "7_BACKTEST_PORTFOLIO"
 LOGS_DIR = BACKTEST_DIR / "_logs"
@@ -43,14 +43,14 @@ REGISTRY_DIR = BACKTEST_DIR / "REGISTRY"
 VALIDATION_DIR = BACKTEST_DIR / "VALIDATION"
 STRESS_DIR = BACKTEST_DIR / "STRESS"
 
-BACKTEST_JSON_PATH = BASE_JSON_DIR / "7_JSON_BACKTEST_PORTFOLIO.json"
-RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "7_BACKTEST_PORTFOLIO_RUN_REPORT_LATEST.json"
-PARAM_SEARCH_JSON_PATH = BASE_JSON_DIR / "7_BACKTEST_PARAM_SEARCH_LATEST.json"
-PARAM_SEARCH_RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "7_BACKTEST_PARAM_SEARCH_RUN_REPORT_LATEST.json"
-EXPERIMENT_REGISTRY_JSON_PATH = BASE_JSON_DIR / "7_EXPERIMENT_REGISTRY_LATEST.json"
+BACKTEST_JSON_PATH = BASE_JSON_DIR / "07_BACKTEST_PORTFOLIO_LATEST.json"
+RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "07_BACKTEST_PORTFOLIO_LATEST.json"
+PARAM_SEARCH_JSON_PATH = BASE_JSON_DIR / "07_BACKTEST_PARAM_SEARCH_LATEST.json"
+PARAM_SEARCH_RUN_REPORT_LATEST_PATH = BASE_JSON_DIR / "07_BACKTEST_PARAM_SEARCH_LATEST.json"
+EXPERIMENT_REGISTRY_JSON_PATH = BASE_JSON_DIR / "07_BACKTEST_EXPERIMENT_REGISTRY_LATEST.json"
 EXPERIMENT_REGISTRY_JSONL_PATH = REGISTRY_DIR / "7_EXPERIMENT_REGISTRY.jsonl"
-VALIDATION_JSON_PATH = BASE_JSON_DIR / "7_BACKTEST_VALIDATION_LATEST.json"
-STRESS_JSON_PATH = BASE_JSON_DIR / "7_BACKTEST_STRESS_LATEST.json"
+VALIDATION_JSON_PATH = BASE_JSON_DIR / "07_BACKTEST_VALIDATION_LATEST.json"
+STRESS_JSON_PATH = BASE_JSON_DIR / "07_BACKTEST_STRESS_LATEST.json"
 
 DEFAULT_TARGET_ANNUAL_RETURN = 0.20
 DEFAULT_REFERENCE_DRAWDOWN_LIMIT = 0.08
@@ -1200,37 +1200,37 @@ def update_ai_context_index(backtest_summary: dict[str, Any]) -> None:
         existing = {item.get("file"): item for item in files if isinstance(item, dict)}
         for file_name, role, hint in [
             (
-                "7_JSON_BACKTEST_PORTFOLIO.json",
+                "07_BACKTEST_PORTFOLIO_LATEST.json",
                 "backtest de portfolio",
                 "Use para avaliar PnL liquido, custos, stops, take profit, sizing, drawdown e meta anual.",
             ),
             (
-                "7_BACKTEST_PORTFOLIO_RUN_REPORT_LATEST.json",
+                "07_BACKTEST_PORTFOLIO_LATEST.json",
                 "telemetria da etapa 7",
                 "Use para performance do codigo, tempos por fase e erros do backtest.",
             ),
             (
-                "7_BACKTEST_PARAM_SEARCH_LATEST.json",
+                "07_BACKTEST_PARAM_SEARCH_LATEST.json",
                 "busca de parametros do backtest",
                 "Use para comparar thresholds, stops, take profit, long-only vs long-short e filtros de custo.",
             ),
             (
-                "7_BACKTEST_PARAM_SEARCH_RUN_REPORT_LATEST.json",
+                "07_BACKTEST_PARAM_SEARCH_LATEST.json",
                 "telemetria da busca de parametros",
                 "Use para auditar ranking, score e custo computacional da calibracao da etapa 7.",
             ),
             (
-                "7_BACKTEST_VALIDATION_LATEST.json",
+                "07_BACKTEST_VALIDATION_LATEST.json",
                 "validacao automatica do backtest",
                 "Use para verificar schema, trades, equity, custos, fill ratio e consistencia temporal.",
             ),
             (
-                "7_BACKTEST_STRESS_LATEST.json",
+                "07_BACKTEST_STRESS_LATEST.json",
                 "stress test do backtest",
                 "Use para avaliar sensibilidade a custos, slippage, funding e piores regimes aproximados.",
             ),
             (
-                "7_EXPERIMENT_REGISTRY_LATEST.json",
+                "07_BACKTEST_EXPERIMENT_REGISTRY_LATEST.json",
                 "registry de experimentos",
                 "Use para versionar dataset, previsoes, custos, config, metricas, validacao e stress.",
             ),
@@ -1254,13 +1254,13 @@ def update_ai_context_index(backtest_summary: dict[str, Any]) -> None:
 
         order = index.setdefault("ai_reading_order", [])
         for name in [
-            "7_JSON_BACKTEST_PORTFOLIO.json",
-            "7_BACKTEST_PORTFOLIO_RUN_REPORT_LATEST.json",
-            "7_BACKTEST_PARAM_SEARCH_LATEST.json",
-            "7_BACKTEST_PARAM_SEARCH_RUN_REPORT_LATEST.json",
-            "7_BACKTEST_VALIDATION_LATEST.json",
-            "7_BACKTEST_STRESS_LATEST.json",
-            "7_EXPERIMENT_REGISTRY_LATEST.json",
+            "07_BACKTEST_PORTFOLIO_LATEST.json",
+            "07_BACKTEST_PORTFOLIO_LATEST.json",
+            "07_BACKTEST_PARAM_SEARCH_LATEST.json",
+            "07_BACKTEST_PARAM_SEARCH_LATEST.json",
+            "07_BACKTEST_VALIDATION_LATEST.json",
+            "07_BACKTEST_STRESS_LATEST.json",
+            "07_BACKTEST_EXPERIMENT_REGISTRY_LATEST.json",
         ]:
             if name not in order:
                 order.append(name)
@@ -1291,7 +1291,7 @@ def update_ai_context_index(backtest_summary: dict[str, Any]) -> None:
 
         recommendations = index.setdefault("recommendations_for_codex", [])
         recommendation = (
-            "Antes de ligar execucao em testnet, use 7_JSON_BACKTEST_PORTFOLIO.json "
+            "Antes de ligar execucao em testnet, use 07_BACKTEST_PORTFOLIO_LATEST.json "
             "para validar PnL liquido, drawdown, custos, stop/take profit e estabilidade."
         )
         if recommendation not in recommendations:
@@ -1813,7 +1813,7 @@ def run_backtest_once(
         "policy": {
             "source_predictions": "Somente previsoes OOS salvas pela etapa 6.",
             "source_returns": "Labels futuros da etapa 4/5; labels nao sao usados como features, apenas para medir PnL realizado no backtest.",
-            "costs": "Custos explicitos do dataset e COST_MODEL.json; fee, slippage, spread, impacto e funding por horizonte.",
+            "costs": "Custos explicitos do dataset e 00_COST_MODEL.json; fee, slippage, spread, impacto e funding por horizonte.",
             "stops": "Stop/take profit sao aproximados por MFE/MAE. Se ambos ocorrem na janela, assume stop primeiro por conservadorismo.",
             "sides": "Long quando proba_long >= entry_threshold; short quando allow_short=True e proba_long <= short_entry_threshold.",
             "live_trading": "Nenhuma execucao live. Este modulo e pesquisa/backtest.",

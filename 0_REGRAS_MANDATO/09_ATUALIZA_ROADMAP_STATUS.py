@@ -20,28 +20,28 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
-SCRIPT_NAME = '0_ATUALIZA_ROADMAP_STATUS.py'
+SCRIPT_NAME = '09_ATUALIZA_ROADMAP_STATUS.py'
 SCHEMA_VERSION = 'ARCHANGEL_ROADMAP_STATUS_REPORT_2.0'
 ROOT_DIR = Path(__file__).resolve().parent.parent
 RULES_DIR = ROOT_DIR / '0_REGRAS_MANDATO'
 BASE_JSON_DIR = RULES_DIR / 'BASE_JSON'
 DOCX_PATH = RULES_DIR / 'PROMPT_GERAL_v3_ARCHANGEL_ROADMAP_INTERNO.docx'
 XLSX_PATH = RULES_DIR / 'ARCHANGEL_STATUS_PARAMETROS_RESULTADOS.xlsx'
-REPORT_JSON_PATH = BASE_JSON_DIR / 'ROADMAP_STATUS_REPORT_LATEST.json'
+REPORT_JSON_PATH = BASE_JSON_DIR / '09_ROADMAP_STATUS_REPORT_LATEST.json'
 
 JSONS = [
-    '00_RUN_ALL_RUN_REPORT_LATEST.json','ARCHANGEL_AI_CONTEXT_INDEX.json','RUN_STATE.json',
-    'ARCHANGEL_MACHINE_PROFILE.json','ARCHANGEL_PYTHON_ENVIRONMENT.json','MAPA_ATIVOS.json',
-    'DATA_QUALITY_REPORT.json','DATA_QUALITY_ROOT_CAUSE_REPORT.json','3_JSON_FEATURES.json',
-    '3_FEATURES_RUN_REPORT_LATEST.json','3_FEATURES_CUDA_BENCHMARK_LATEST.json','3_FEATURES_RETRY_PLAN_LATEST.json',
-    '4_JSON_LABELS.json','4_LABELS_RUN_REPORT_LATEST.json','5_JSON_DATASETS_ML.json','5_DATASETS_ML_RUN_REPORT_LATEST.json',
-    '6_JSON_WALK_FORWARD.json','6_WALK_FORWARD_RUN_REPORT_LATEST.json','7_JSON_BACKTEST_PORTFOLIO.json',
-    '7_BACKTEST_PORTFOLIO_RUN_REPORT_LATEST.json','7_BACKTEST_PARAM_SEARCH_LATEST.json','7_BACKTEST_VALIDATION_LATEST.json',
-    '7_BACKTEST_STRESS_LATEST.json','7_EXPERIMENT_REGISTRY_LATEST.json','8_JSON_EXPERIMENT_REGISTRY.json',
-    '8_EXPERIMENT_REGISTRY_LATEST.json','8_EXPERIMENT_REGISTRY_RUN_REPORT_LATEST.json','8_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json',
-    'COST_MODEL.json'
+    '00_RUN_ALL_REPORT_LATEST.json', '99_AI_CONTEXT_INDEX_LATEST.json', '00_RUN_STATE_LATEST.json',
+    '00_01_MACHINE_PROFILE_LATEST.json', '00_02_PYTHON_ENVIRONMENT_LATEST.json', '00_03_BASE_ARQUIVOS_LATEST.json',
+    '01_MAPA_ATIVOS_LATEST.json', '01_CATALOGO_SERIES_LATEST.json',
+    '02_01_DATA_QUALITY_REPORT_LATEST.json', '02_01_DATA_QUALITY_ROOT_CAUSE_LATEST.json',
+    '03_FEATURES_CATALOG_LATEST.json', '03_FEATURES_RUN_REPORT_LATEST.json', '03_01_FEATURES_CUDA_BENCHMARK_LATEST.json', '03_FEATURES_RETRY_PLAN_LATEST.json',
+    '04_LABELS_CATALOG_LATEST.json', '04_LABELS_RUN_REPORT_LATEST.json',
+    '05_DATASETS_ML_LATEST.json',
+    '06_WALK_FORWARD_LATEST.json',
+    '07_BACKTEST_PORTFOLIO_LATEST.json', '07_BACKTEST_PARAM_SEARCH_LATEST.json', '07_BACKTEST_VALIDATION_LATEST.json', '07_BACKTEST_STRESS_LATEST.json', '07_BACKTEST_EXPERIMENT_REGISTRY_LATEST.json',
+    '08_EXPERIMENT_REGISTRY_LATEST.json', '08_EXPERIMENT_REGISTRY_VALIDATION_LATEST.json',
+    '09_ROADMAP_STATUS_REPORT_LATEST.json', '00_COST_MODEL.json'
 ]
-
 
 def load_json(name: str) -> dict[str, Any]:
     path = BASE_JSON_DIR / name
@@ -126,18 +126,18 @@ def compact(value: Any, limit: int = 500) -> Any:
 
 MODULE_PY = [
     ('00', '00_RUN_ALL.py', 'Orquestra pipeline completo e atualiza status final'),
-    ('0A', '0_DIAGNOSTICO_HARDWARE_BARRAMENTO.py', 'Perfil de hardware, CUDA, barramento e Python'),
-    ('0B', '0_MAPEAMENTO_DIRETORIOS.py', 'Inventario de arquivos, pastas e manifestos'),
-    ('0C', '0_AUDITA_QUALIDADE_DADOS.py', 'Auditoria de qualidade, gaps e bloqueios ML'),
-    ('1', '1_MAPA_ATIVOS.py', 'Mapa dinamico de ativos, series, periodicidade e arquivos'),
-    ('2', '2_BUSCA_DADOS.py', 'Coleta e atualizacao de dados de mercado'),
-    ('3', '3_GERA_FEATURES.py', 'Geracao de features e telemetria de performance'),
-    ('4', '4_GERA_LABELS.py', 'Geracao de labels e auditoria anti-leakage'),
-    ('5', '5_MONTA_DATASETS_ML.py', 'Join features/labels e montagem de datasets ML'),
-    ('6', '6_WALK_FORWARD_TRAINING.py', 'Treino walk-forward com purging/embargo'),
-    ('7', '7_BACKTEST_PORTFOLIO.py', 'Backtest portfolio realista com custos/stress/execucao'),
-    ('8', '8_EXPERIMENT_REGISTRY.py', 'Registry formal de experimentos e linhagem'),
-    ('0R', '0_ATUALIZA_ROADMAP_STATUS.py', 'Comunicacao humana: Word, Excel e JSON de roadmap'),
+    ('00.01', '00_01_DIAGNOSTICO_HARDWARE_BARRAMENTO.py', 'Perfil de hardware, CUDA, barramento e Python'),
+    ('00.03', '00_03_MAPEAMENTO_DIRETORIOS.py', 'Inventario de arquivos, pastas e manifestos'),
+    ('02.01', '02_01_AUDITA_QUALIDADE_DADOS.py', 'Auditoria de qualidade, gaps e bloqueios ML'),
+    ('1', '01_MAPA_ATIVOS.py', 'Mapa dinamico de ativos, series, periodicidade e arquivos'),
+    ('2', '02_BUSCA_DADOS.py', 'Coleta e atualizacao de dados de mercado'),
+    ('3', '03_GERA_FEATURES.py', 'Geracao de features e telemetria de performance'),
+    ('4', '04_GERA_LABELS.py', 'Geracao de labels e auditoria anti-leakage'),
+    ('5', '05_MONTA_DATASETS_ML.py', 'Join features/labels e montagem de datasets ML'),
+    ('6', '06_WALK_FORWARD_TRAINING.py', 'Treino walk-forward com purging/embargo'),
+    ('7', '07_BACKTEST_PORTFOLIO.py', 'Backtest portfolio realista com custos/stress/execucao'),
+    ('8', '08_EXPERIMENT_REGISTRY.py', 'Registry formal de experimentos e linhagem'),
+    ('09', '09_ATUALIZA_ROADMAP_STATUS.py', 'Comunicacao humana: Word, Excel e JSON de roadmap'),
 ]
 
 
@@ -161,75 +161,75 @@ def _date_from_range(value: Any, *keys: str) -> Any:
 
 def _module_jsons(script: str) -> list[str]:
     return {
-        '00_RUN_ALL.py': ['00_RUN_ALL_RUN_REPORT_LATEST.json', 'RUN_STATE.json', 'ARCHANGEL_AI_CONTEXT_INDEX.json'],
-        '0_DIAGNOSTICO_HARDWARE_BARRAMENTO.py': ['ARCHANGEL_MACHINE_PROFILE.json', 'ARCHANGEL_PYTHON_ENVIRONMENT.json'],
-        '0_MAPEAMENTO_DIRETORIOS.py': ['BASE_ARQUIVOS.json'],
-        '0_AUDITA_QUALIDADE_DADOS.py': ['DATA_QUALITY_REPORT.json', 'DATA_QUALITY_ROOT_CAUSE_REPORT.json'],
-        '1_MAPA_ATIVOS.py': ['MAPA_ATIVOS.json', 'CATALOGO_ARCHANGEL_SERIES.json'],
-        '2_BUSCA_DADOS.py': ['MAPA_ATIVOS.json', 'BASE_ARQUIVOS.json'],
-        '3_GERA_FEATURES.py': ['3_JSON_FEATURES.json', '3_FEATURES_RUN_REPORT_LATEST.json', '3_FEATURES_CUDA_BENCHMARK_LATEST.json'],
-        '4_GERA_LABELS.py': ['4_JSON_LABELS.json', '4_LABELS_RUN_REPORT_LATEST.json'],
-        '5_MONTA_DATASETS_ML.py': ['5_JSON_DATASETS_ML.json', '5_DATASETS_ML_RUN_REPORT_LATEST.json'],
-        '6_WALK_FORWARD_TRAINING.py': ['6_JSON_WALK_FORWARD.json', '6_WALK_FORWARD_RUN_REPORT_LATEST.json'],
-        '7_BACKTEST_PORTFOLIO.py': ['7_JSON_BACKTEST_PORTFOLIO.json', '7_BACKTEST_STRESS_LATEST.json', '7_BACKTEST_VALIDATION_LATEST.json'],
-        '8_EXPERIMENT_REGISTRY.py': ['8_EXPERIMENT_REGISTRY_LATEST.json', '8_JSON_EXPERIMENT_REGISTRY.json'],
-        '0_ATUALIZA_ROADMAP_STATUS.py': ['ROADMAP_STATUS_REPORT_LATEST.json'],
+        '00_RUN_ALL.py': ['00_RUN_ALL_REPORT_LATEST.json', '00_RUN_STATE_LATEST.json', '99_AI_CONTEXT_INDEX_LATEST.json'],
+        '00_01_DIAGNOSTICO_HARDWARE_BARRAMENTO.py': ['00_01_MACHINE_PROFILE_LATEST.json', '00_02_PYTHON_ENVIRONMENT_LATEST.json'],
+        '00_03_MAPEAMENTO_DIRETORIOS.py': ['00_03_BASE_ARQUIVOS_LATEST.json'],
+        '02_01_AUDITA_QUALIDADE_DADOS.py': ['02_01_DATA_QUALITY_REPORT_LATEST.json', '02_01_DATA_QUALITY_ROOT_CAUSE_LATEST.json'],
+        '01_MAPA_ATIVOS.py': ['01_MAPA_ATIVOS_LATEST.json', '01_CATALOGO_SERIES_LATEST.json'],
+        '02_BUSCA_DADOS.py': ['01_MAPA_ATIVOS_LATEST.json', '00_03_BASE_ARQUIVOS_LATEST.json'],
+        '03_GERA_FEATURES.py': ['03_FEATURES_CATALOG_LATEST.json', '03_FEATURES_RUN_REPORT_LATEST.json', '03_01_FEATURES_CUDA_BENCHMARK_LATEST.json'],
+        '04_GERA_LABELS.py': ['04_LABELS_CATALOG_LATEST.json', '04_LABELS_RUN_REPORT_LATEST.json'],
+        '05_MONTA_DATASETS_ML.py': ['05_DATASETS_ML_LATEST.json'],
+        '06_WALK_FORWARD_TRAINING.py': ['06_WALK_FORWARD_LATEST.json'],
+        '07_BACKTEST_PORTFOLIO.py': ['07_BACKTEST_PORTFOLIO_LATEST.json', '07_BACKTEST_STRESS_LATEST.json', '07_BACKTEST_VALIDATION_LATEST.json'],
+        '08_EXPERIMENT_REGISTRY.py': ['08_EXPERIMENT_REGISTRY_LATEST.json'],
+        '09_ATUALIZA_ROADMAP_STATUS.py': ['09_ROADMAP_STATUS_REPORT_LATEST.json'],
     }.get(script, [])
 
 
 def _module_note(script: str, data: dict[str, dict[str, Any]]) -> str:
-    if script == '1_MAPA_ATIVOS.py':
-        s = data['MAPA_ATIVOS.json'].get('summary', {})
+    if script == '01_MAPA_ATIVOS.py':
+        s = data['01_MAPA_ATIVOS_LATEST.json'].get('summary', {})
         return f"{fint(s.get('total_series_parquet_mapped'))} series; {fint(s.get('total_ohlcv_series'))} OHLCV; {fint(s.get('warning_series_count'))} com warning."
-    if script == '2_BUSCA_DADOS.py':
+    if script == '02_BUSCA_DADOS.py':
         return 'Sem run_report proprio dedicado; status inferido por inventario, mapa de ativos e arquivos parquet.'
-    if script == '3_GERA_FEATURES.py':
-        s = data['3_JSON_FEATURES.json'].get('summary', {})
-        backend = nested(data['3_FEATURES_RUN_REPORT_LATEST.json'], 'summary', 'feature_compute_backend')
+    if script == '03_GERA_FEATURES.py':
+        s = data['03_FEATURES_CATALOG_LATEST.json'].get('summary', {})
+        backend = nested(data['03_FEATURES_RUN_REPORT_LATEST.json'], 'summary', 'feature_compute_backend')
         return f"{fint(s.get('series_ok'))} series OK; {fint(s.get('feature_catalog_count'))} features; backend {compact(backend, 160)}."
-    if script == '4_GERA_LABELS.py':
-        s = data['4_JSON_LABELS.json'].get('summary', {})
+    if script == '04_GERA_LABELS.py':
+        s = data['04_LABELS_CATALOG_LATEST.json'].get('summary', {})
         return f"{fint(s.get('series_ok'))} series OK; {fint(s.get('labels_catalog_count'))} labels; audit_pass {fint(s.get('audit_pass'))}."
-    if script == '5_MONTA_DATASETS_ML.py':
-        s = data['5_JSON_DATASETS_ML.json'].get('summary', {})
+    if script == '05_MONTA_DATASETS_ML.py':
+        s = data['05_DATASETS_ML_LATEST.json'].get('summary', {})
         return f"{fint(s.get('datasets_ok'))} datasets; {fint(s.get('total_trainable_rows'))} linhas treinaveis; gate {compact(s.get('ml_gate_counts'), 160)}."
-    if script == '6_WALK_FORWARD_TRAINING.py':
-        s = data['6_JSON_WALK_FORWARD.json'].get('summary', {})
+    if script == '06_WALK_FORWARD_TRAINING.py':
+        s = data['06_WALK_FORWARD_LATEST.json'].get('summary', {})
         return f"{fint(s.get('experiments_ok'))} experimentos; balanced accuracy {fdec(s.get('avg_balanced_accuracy'))}; CUDA {s.get('cuda_enabled_for_this_run')}."
-    if script == '7_BACKTEST_PORTFOLIO.py':
-        s = data['7_JSON_BACKTEST_PORTFOLIO.json'].get('summary', {})
+    if script == '07_BACKTEST_PORTFOLIO.py':
+        s = data['07_BACKTEST_PORTFOLIO_LATEST.json'].get('summary', {})
         return f"{fint(s.get('portfolio_total_trades'))} trades; CAGR {fpct(s.get('portfolio_cagr'))}; retorno {fpct(s.get('portfolio_total_return'))}; DD {fpct(s.get('portfolio_max_drawdown'))}."
-    if script == '8_EXPERIMENT_REGISTRY.py':
-        s = data['8_EXPERIMENT_REGISTRY_LATEST.json'].get('summary', {})
+    if script == '08_EXPERIMENT_REGISTRY.py':
+        s = data['08_EXPERIMENT_REGISTRY_LATEST.json'].get('summary', {})
         return f"{fint(s.get('registry_rows'))} linhas; validacao {s.get('validation_status')}; missing artifacts {s.get('missing_artifacts')}."
-    if script == '0_DIAGNOSTICO_HARDWARE_BARRAMENTO.py':
-        s = data['ARCHANGEL_PYTHON_ENVIRONMENT.json'].get('summary', {})
+    if script == '00_01_DIAGNOSTICO_HARDWARE_BARRAMENTO.py':
+        s = data['00_02_PYTHON_ENVIRONMENT_LATEST.json'].get('summary', {})
         return f"PyTorch CUDA={s.get('cuda_ready_for_pytorch')}; CuPy CUDA={s.get('cuda_ready_for_cupy')}."
     if script == '00_RUN_ALL.py':
-        s = data['00_RUN_ALL_RUN_REPORT_LATEST.json'].get('summary', {})
+        s = data['00_RUN_ALL_REPORT_LATEST.json'].get('summary', {})
         return f"Status {s.get('status')}; etapas OK {fint(s.get('stages_ok'))}; erros {fint(s.get('stages_error'))}."
     return 'Operacional dentro do pipeline; detalhes consolidados nas abas especificas.'
 
 
 def _module_change(script: str) -> str:
     return {
-        '1_MAPA_ATIVOS.py': 'Adicionar classificacao MVP/experimental, mercado/exchange e regras de elegibilidade por serie.',
-        '2_BUSCA_DADOS.py': 'Criar JSON proprio de run: fontes chamadas, latencia, candles novos, retries, falhas por exchange e cobertura por ativo.',
-        '3_GERA_FEATURES.py': 'Migrar blocos rolling caros para CUDA/CuPy com benchmark antes/depois e equivalencia numerica.',
-        '4_GERA_LABELS.py': 'Adicionar labels por regime/custo/funding e validacao mais dura de anti-leakage.',
-        '5_MONTA_DATASETS_ML.py': 'Separar datasets por familia de features e criar datasets de ablation controlados.',
-        '6_WALK_FORWARD_TRAINING.py': 'Registrar importancia/estabilidade por janela e degradacao por custos.',
-        '7_BACKTEST_PORTFOLIO.py': 'Calibrar microestrutura com dados reais de liquidez quando disponiveis.',
-        '8_EXPERIMENT_REGISTRY.py': 'Adicionar decisao humana: pesquisar, repetir, rejeitar, arquivar, candidato testnet.',
+        '01_MAPA_ATIVOS.py': 'Adicionar classificacao MVP/experimental, mercado/exchange e regras de elegibilidade por serie.',
+        '02_BUSCA_DADOS.py': 'Criar JSON proprio de run: fontes chamadas, latencia, candles novos, retries, falhas por exchange e cobertura por ativo.',
+        '03_GERA_FEATURES.py': 'Migrar blocos rolling caros para CUDA/CuPy com benchmark antes/depois e equivalencia numerica.',
+        '04_GERA_LABELS.py': 'Adicionar labels por regime/custo/funding e validacao mais dura de anti-leakage.',
+        '05_MONTA_DATASETS_ML.py': 'Separar datasets por familia de features e criar datasets de ablation controlados.',
+        '06_WALK_FORWARD_TRAINING.py': 'Registrar importancia/estabilidade por janela e degradacao por custos.',
+        '07_BACKTEST_PORTFOLIO.py': 'Calibrar microestrutura com dados reais de liquidez quando disponiveis.',
+        '08_EXPERIMENT_REGISTRY.py': 'Adicionar decisao humana: pesquisar, repetir, rejeitar, arquivar, candidato testnet.',
         '00_RUN_ALL.py': 'Manter hook final de status e nunca misturar live trading com pesquisa.',
     }.get(script, 'Documentar parametros editaveis e impacto esperado.')
 
 
 def build_module_details(data: dict[str, dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    mapa = data['MAPA_ATIVOS.json']; dq = data['DATA_QUALITY_REPORT.json']; feat = data['3_JSON_FEATURES.json']
-    labels = data['4_JSON_LABELS.json']; ds = data['5_JSON_DATASETS_ML.json']; wf = data['6_JSON_WALK_FORWARD.json']
-    bt = data['7_JSON_BACKTEST_PORTFOLIO.json']; stress = data['7_BACKTEST_STRESS_LATEST.json']; reg = data['8_EXPERIMENT_REGISTRY_LATEST.json']
-    run = data['00_RUN_ALL_RUN_REPORT_LATEST.json']
+    mapa = data['01_MAPA_ATIVOS_LATEST.json']; dq = data['02_01_DATA_QUALITY_REPORT_LATEST.json']; feat = data['03_FEATURES_CATALOG_LATEST.json']
+    labels = data['04_LABELS_CATALOG_LATEST.json']; ds = data['05_DATASETS_ML_LATEST.json']; wf = data['06_WALK_FORWARD_LATEST.json']
+    bt = data['07_BACKTEST_PORTFOLIO_LATEST.json']; stress = data['07_BACKTEST_STRESS_LATEST.json']; reg = data['08_EXPERIMENT_REGISTRY_LATEST.json']
+    run = data['00_RUN_ALL_REPORT_LATEST.json']
     run_stages = {str(x.get('script') or x.get('stage') or x.get('name')): x for x in run.get('stages', []) if isinstance(x, dict)}
     modules = []
     for code, script, purpose in MODULE_PY:
@@ -306,18 +306,18 @@ def build_module_details(data: dict[str, dict[str, Any]]) -> dict[str, list[dict
         registry.append({'registry_id': x.get('registry_id'), 'experiment_id': x.get('experiment_id'), 'status': x.get('status') or x.get('experiment_status'), 'asset': x.get('asset'), 'symbol': x.get('symbol'), 'source': x.get('source'), 'timeframe': x.get('timeframe'), 'target_col': x.get('target_col'), 'dataset_trainable_rows': x.get('dataset_trainable_rows'), 'dataset_ml_gate': x.get('dataset_ml_gate'), 'wf_balanced_accuracy': x.get('wf_balanced_accuracy') or x.get('walk_forward_balanced_accuracy'), 'backtest_total_return': x.get('backtest_total_return'), 'backtest_cagr': x.get('backtest_cagr'), 'backtest_max_drawdown': x.get('backtest_max_drawdown'), 'approval_status': x.get('approval_status'), 'portfolio_research_status': x.get('portfolio_research_status'), 'config_hash': x.get('config_hash'), 'dataset_fingerprint': x.get('dataset_fingerprint'), 'model_fingerprint': x.get('model_fingerprint')})
 
     parameters = []
-    for source, obj, note in [('3_FEATURES', feat.get('feature_config', {}), 'Feature config atual'), ('3_PERFORMANCE', feat.get('performance_policy', {}), 'Hardware/CPU/CUDA features'), ('4_LABEL_CONFIG', labels.get('label_configs', []), 'Labels e horizontes'), ('5_POLICY', ds.get('policy', {}), 'Join, allowed features, anti-leakage'), ('6_CONFIG', wf.get('config', {}), 'Treino walk-forward'), ('6_BACKEND', wf.get('backend_plan', {}), 'CUDA/CPU training'), ('7_CONFIG', bt.get('config', {}), 'Backtest portfolio'), ('7_POLICY', bt.get('policy', {}), 'Execucao, custos e live guard'), ('8_POLICY', reg.get('policy', {}), 'Registry e aprovacao'), ('COST_MODEL', data['COST_MODEL.json'], 'Custos/funding/slippage assumptions')]:
+    for source, obj, note in [('3_FEATURES', feat.get('feature_config', {}), 'Feature config atual'), ('3_PERFORMANCE', feat.get('performance_policy', {}), 'Hardware/CPU/CUDA features'), ('4_LABEL_CONFIG', labels.get('label_configs', []), 'Labels e horizontes'), ('5_POLICY', ds.get('policy', {}), 'Join, allowed features, anti-leakage'), ('6_CONFIG', wf.get('config', {}), 'Treino walk-forward'), ('6_BACKEND', wf.get('backend_plan', {}), 'CUDA/CPU training'), ('7_CONFIG', bt.get('config', {}), 'Backtest portfolio'), ('7_POLICY', bt.get('policy', {}), 'Execucao, custos e live guard'), ('8_POLICY', reg.get('policy', {}), 'Registry e aprovacao'), ('COST_MODEL', data['00_COST_MODEL.json'], 'Custos/funding/slippage assumptions')]:
         if isinstance(obj, dict):
             for k, v in obj.items(): parameters.append({'source': source, 'parameter': k, 'value': compact(v, 700), 'meaning': note, 'can_change': _parameter_change_note(source, k)})
         elif isinstance(obj, list):
             for i, v in enumerate(obj): parameters.append({'source': source, 'parameter': f'item_{i+1}', 'value': compact(v, 700), 'meaning': note, 'can_change': 'Alterar somente com ablation e registro no registry.'})
 
     improvements = [
-        {'priority': 1, 'module': '2_BUSCA_DADOS.py', 'improvement': 'Criar run_report dedicado para coleta', 'why': 'Hoje a coleta e inferida por arquivos/series; falta telemetria de exchange, candles novos, retries e latencia.', 'risk_if_ignored': 'Codex e usuario nao conseguem auditar claramente falhas de dados.', 'status': 'pendente'},
-        {'priority': 2, 'module': '3_GERA_FEATURES.py', 'improvement': 'CUDA em blocos rolling caros', 'why': 'Ultimo run de features ainda mostra pandas_cpu; ha volume alto de matriz.', 'risk_if_ignored': 'Tempo alto limita iteracao e ablation.', 'status': 'proximo'},
+        {'priority': 1, 'module': '02_BUSCA_DADOS.py', 'improvement': 'Criar run_report dedicado para coleta', 'why': 'Hoje a coleta e inferida por arquivos/series; falta telemetria de exchange, candles novos, retries e latencia.', 'risk_if_ignored': 'Codex e usuario nao conseguem auditar claramente falhas de dados.', 'status': 'pendente'},
+        {'priority': 2, 'module': '03_GERA_FEATURES.py', 'improvement': 'CUDA em blocos rolling caros', 'why': 'Ultimo run de features ainda mostra pandas_cpu; ha volume alto de matriz.', 'risk_if_ignored': 'Tempo alto limita iteracao e ablation.', 'status': 'proximo'},
         {'priority': 3, 'module': 'Features', 'improvement': 'Ablation por familias e features nao convencionais', 'why': 'Backtest atual e negativo; precisamos achar ou rejeitar edge com disciplina.', 'risk_if_ignored': 'Aumentar complexidade sem saber o que ajuda.', 'status': 'proximo'},
-        {'priority': 4, 'module': '7_BACKTEST_PORTFOLIO.py', 'improvement': 'Calibrar microestrutura com dados reais', 'why': 'Slippage/funding assumidos sao bons para stress, mas devem convergir para dados por exchange.', 'risk_if_ignored': 'Backtest pode ficar distante da execucao real.', 'status': 'pendente'},
-        {'priority': 5, 'module': '8_EXPERIMENT_REGISTRY.py', 'improvement': 'Adicionar campo decisao humana', 'why': 'Separar pesquisa tecnica, candidato promissor, rejeitado, arquivado e pronto para testnet.', 'risk_if_ignored': 'Historico vira deposito, nao ferramenta de decisao.', 'status': 'pendente'},
+        {'priority': 4, 'module': '07_BACKTEST_PORTFOLIO.py', 'improvement': 'Calibrar microestrutura com dados reais', 'why': 'Slippage/funding assumidos sao bons para stress, mas devem convergir para dados por exchange.', 'risk_if_ignored': 'Backtest pode ficar distante da execucao real.', 'status': 'pendente'},
+        {'priority': 5, 'module': '08_EXPERIMENT_REGISTRY.py', 'improvement': 'Adicionar campo decisao humana', 'why': 'Separar pesquisa tecnica, candidato promissor, rejeitado, arquivado e pronto para testnet.', 'risk_if_ignored': 'Historico vira deposito, nao ferramenta de decisao.', 'status': 'pendente'},
         {'priority': 6, 'module': 'Execucao testnet', 'improvement': 'Conectar Bybit/Binance/Kraken Pro em ambiente de teste', 'why': 'Validar latencia, ordens, partial fill e robustez operacional.', 'risk_if_ignored': 'Modelo pode parecer bom mas falhar na execucao.', 'status': 'depois'},
     ]
     return {'modules': modules, 'assets_series': assets_series, 'data_fetch_status': sorted(fetch_rows, key=lambda x: (str(x.get('source')), str(x.get('asset')), str(x.get('dataset_kind')))), 'features_catalog': features_catalog, 'features_series': _series_outputs(feat.get('series_outputs', []), 'features'), 'features_ideas': feature_ideas, 'labels_config': labels_config, 'labels_series': _series_outputs(labels.get('series_outputs', []), 'labels'), 'datasets': datasets, 'walk_forward': wf_rows, 'backtest_experiments': bt_rows, 'stress_tests': stress_rows, 'registry': registry, 'parameters': parameters, 'improvements': improvements}
@@ -335,18 +335,18 @@ def _parameter_change_note(source: str, key: str) -> str:
 def assess() -> dict[str, Any]:
     data = {name: load_json(name) for name in JSONS}
     inv = inventory()
-    run = data['00_RUN_ALL_RUN_REPORT_LATEST.json']
-    mapa = data['MAPA_ATIVOS.json']; dq = data['DATA_QUALITY_REPORT.json']
-    feat = data['3_JSON_FEATURES.json']; feat_run = data['3_FEATURES_RUN_REPORT_LATEST.json']
-    labels = data['4_JSON_LABELS.json']; ds = data['5_JSON_DATASETS_ML.json']; wf = data['6_JSON_WALK_FORWARD.json']
-    bt = data['7_JSON_BACKTEST_PORTFOLIO.json']; val = data['7_BACKTEST_VALIDATION_LATEST.json']; stress = data['7_BACKTEST_STRESS_LATEST.json']
-    reg = data['8_EXPERIMENT_REGISTRY_LATEST.json']; pyenv = data['ARCHANGEL_PYTHON_ENVIRONMENT.json']; bench = data['3_FEATURES_CUDA_BENCHMARK_LATEST.json']
+    run = data['00_RUN_ALL_REPORT_LATEST.json']
+    mapa = data['01_MAPA_ATIVOS_LATEST.json']; dq = data['02_01_DATA_QUALITY_REPORT_LATEST.json']
+    feat = data['03_FEATURES_CATALOG_LATEST.json']; feat_run = data['03_FEATURES_RUN_REPORT_LATEST.json']
+    labels = data['04_LABELS_CATALOG_LATEST.json']; ds = data['05_DATASETS_ML_LATEST.json']; wf = data['06_WALK_FORWARD_LATEST.json']
+    bt = data['07_BACKTEST_PORTFOLIO_LATEST.json']; val = data['07_BACKTEST_VALIDATION_LATEST.json']; stress = data['07_BACKTEST_STRESS_LATEST.json']
+    reg = data['08_EXPERIMENT_REGISTRY_LATEST.json']; pyenv = data['00_02_PYTHON_ENVIRONMENT_LATEST.json']; bench = data['03_01_FEATURES_CUDA_BENCHMARK_LATEST.json']
     run_s = run.get('summary', {}); dq_s = dq.get('summary', {}); feat_s = feat.get('summary', {}); feat_run_s = feat_run.get('summary', {})
     label_s = labels.get('summary', {}); ds_s = ds.get('summary', {}); wf_s = wf.get('summary', {}); bt_s = bt.get('summary', {}); reg_s = reg.get('summary', {})
-    run_time = mtime('00_RUN_ALL_RUN_REPORT_LATEST.json'); feat_time = max(mtime('3_JSON_FEATURES.json'), mtime('3_FEATURES_RUN_REPORT_LATEST.json'))
-    downstream = {'labels': mtime('4_JSON_LABELS.json'), 'datasets': mtime('5_JSON_DATASETS_ML.json'), 'walk_forward': mtime('6_JSON_WALK_FORWARD.json'), 'backtest': mtime('7_JSON_BACKTEST_PORTFOLIO.json'), 'registry': mtime('8_EXPERIMENT_REGISTRY_LATEST.json')}
+    run_time = mtime('00_RUN_ALL_REPORT_LATEST.json'); feat_time = max(mtime('03_FEATURES_CATALOG_LATEST.json'), mtime('03_FEATURES_RUN_REPORT_LATEST.json'))
+    downstream = {'labels': mtime('04_LABELS_CATALOG_LATEST.json'), 'datasets': mtime('05_DATASETS_ML_LATEST.json'), 'walk_forward': mtime('06_WALK_FORWARD_LATEST.json'), 'backtest': mtime('07_BACKTEST_PORTFOLIO_LATEST.json'), 'registry': mtime('08_EXPERIMENT_REGISTRY_LATEST.json')}
     stale = [k for k, v in downstream.items() if feat_time and v and v + 30 < feat_time]
-    self_generated = {'ROADMAP_STATUS_REPORT_LATEST.json', 'ARCHANGEL_AI_CONTEXT_INDEX.json'}
+    self_generated = {'09_ROADMAP_STATUS_REPORT_LATEST.json', '99_AI_CONTEXT_INDEX_LATEST.json'}
     newer = [r['file'] for r in inv if r['file'] not in self_generated and (BASE_JSON_DIR / r['file']).is_file() and (BASE_JSON_DIR / r['file']).stat().st_mtime > run_time + 30]
     cagr = fnum(bt_s.get('portfolio_cagr')); total_ret = fnum(bt_s.get('portfolio_total_return')); max_dd = fnum(bt_s.get('portfolio_max_drawdown'))
     bal = fnum(wf_s.get('avg_balanced_accuracy'))
@@ -373,20 +373,20 @@ def assess() -> dict[str, Any]:
     ]
     roadmap = [
         [1,'Manter DOCX/XLSX/JSON atualizados automaticamente ao fim de cada 00_RUN_ALL','A comunicação humana e IA precisa refletir o run final completo.','IMPLEMENTADO'],
-        [2,'Criar run_report dedicado para 2_BUSCA_DADOS.py','A coleta ainda não é tão auditável quanto as etapas 3 a 8.','PRÓXIMO'],
+        [2,'Criar run_report dedicado para 02_BUSCA_DADOS.py','A coleta ainda não é tão auditável quanto as etapas 3 a 8.','PRÓXIMO'],
         [3,'Migrar CUDA controlado em rolling windows pesadas da etapa 3','Reduz tempo de iteração sem alterar a tese econômica.','PRÓXIMO'],
         [4,'Criar fila de hipóteses e ablação formal de features','O backtest atual é negativo; precisamos saber o que ajuda ou atrapalha.','PRÓXIMO'],
         [5,'Ligar testnet Bybit/Binance/Kraken Pro','Validar execução, latência e partial fill sem risco real.','DEPOIS'],
         [6,'Adaptar para futuros de commodities: coffee, cocoa, cotton','Exige vencimento, rolagem, curva, calendário e liquidez.','FUTURO'],
     ]
     params = [
-        ['target_annual_return_min', bt_s.get('target_annual_return_min'), '7_JSON_BACKTEST_PORTFOLIO', 'Alvo econômico mínimo; não é aprovação automática.'],
-        ['reference_drawdown_limit', bt_s.get('reference_drawdown_limit'), '7_JSON_BACKTEST_PORTFOLIO', 'Referência temporária de 8%.'],
-        ['approval_status', bt_s.get('approval_status'), '7_JSON_BACKTEST_PORTFOLIO', 'Pesquisa separada de aprovação.'],
-        ['feature_backend_mode', nested(feat_run_s,'feature_compute_backend','mode'), '3_FEATURES_RUN_REPORT', 'Último run de features em auto.'],
-        ['walk_forward_backend_usage', wf_s.get('backend_usage'), '6_JSON_WALK_FORWARD', 'Treino já usa torch_cuda.'],
-        ['cuda_ready_for_pytorch', nested(pyenv,'summary','cuda_ready_for_pytorch'), 'ARCHANGEL_PYTHON_ENVIRONMENT', 'Pronto para uso controlado.'],
-        ['cuda_ready_for_cupy', nested(pyenv,'summary','cuda_ready_for_cupy'), 'ARCHANGEL_PYTHON_ENVIRONMENT', 'Pronto para blocos selecionados.'],
+        ['target_annual_return_min', bt_s.get('target_annual_return_min'), '07_BACKTEST_PORTFOLIO_LATEST', 'Alvo econômico mínimo; não é aprovação automática.'],
+        ['reference_drawdown_limit', bt_s.get('reference_drawdown_limit'), '07_BACKTEST_PORTFOLIO_LATEST', 'Referência temporária de 8%.'],
+        ['approval_status', bt_s.get('approval_status'), '07_BACKTEST_PORTFOLIO_LATEST', 'Pesquisa separada de aprovação.'],
+        ['feature_backend_mode', nested(feat_run_s,'feature_compute_backend','mode'), '03_FEATURES_RUN_REPORT_LATEST', 'Último run de features em auto.'],
+        ['walk_forward_backend_usage', wf_s.get('backend_usage'), '06_WALK_FORWARD_LATEST', 'Treino já usa torch_cuda.'],
+        ['cuda_ready_for_pytorch', nested(pyenv,'summary','cuda_ready_for_pytorch'), '00_02_PYTHON_ENVIRONMENT_LATEST', 'Pronto para uso controlado.'],
+        ['cuda_ready_for_cupy', nested(pyenv,'summary','cuda_ready_for_cupy'), '00_02_PYTHON_ENVIRONMENT_LATEST', 'Pronto para blocos selecionados.'],
     ]
     return {'schema_version': SCHEMA_VERSION, 'system': {'name': 'ARCHANGEL', 'layer': 'ROADMAP_STATUS', 'script': SCRIPT_NAME, 'generated_at_utc': datetime.now(timezone.utc).isoformat(timespec='seconds')}, 'paths': {'docx_path': str(DOCX_PATH), 'xlsx_path': str(XLSX_PATH), 'report_json_path': str(REPORT_JSON_PATH), 'base_json_dir': str(BASE_JSON_DIR)}, 'summary': {'verdict': verdict, 'likely_run_in_progress_or_partial_snapshot': bool(newer), 'downstream_stale_after_features': stale, 'red_flags_count': len(red), 'pipeline_status_latest_completed': run_s.get('status'), 'features_ok': feat_s.get('series_ok'), 'labels_ok': label_s.get('series_ok'), 'datasets_ok': ds_s.get('datasets_ok'), 'walk_forward_experiments_ok': wf_s.get('experiments_ok'), 'walk_forward_avg_balanced_accuracy': wf_s.get('avg_balanced_accuracy'), 'portfolio_cagr': cagr, 'portfolio_total_return': total_ret, 'portfolio_max_drawdown': max_dd, 'formal_registry_status': reg_s.get('status'), 'formal_registry_rows': reg_s.get('registry_rows'), 'excel_detail_sheets_count': 20}, 'staleness': {'jsons_newer_than_last_run_all_report': newer, 'downstream_stale_after_features': stale}, 'red_flags': red, 'stage_assessment': [{'stage':r[0], 'status':r[1], 'evidence':r[2], 'risk':r[3], 'next_action':r[4]} for r in stages], 'roadmap': [{'priority':r[0], 'step':r[1], 'why':r[2], 'status':r[3]} for r in roadmap], 'parameters': [{'parameter':r[0], 'value':r[1], 'source':r[2], 'note':r[3]} for r in params], 'module_details': build_module_details(data), 'json_inventory': inv}
 
@@ -463,7 +463,7 @@ def build_docx(report):
     heading(doc, '5. Roadmap Recomendado')
     for r in report['roadmap']: bullet(doc, f"{r['priority']}. {r['step']} [{r['status']}]. Motivo: {r['why']}")
     heading(doc, '6. Como Ler Este Status')
-    para(doc, 'Leia este DOCX, depois ROADMAP_STATUS_REPORT_LATEST.json, ARCHANGEL_AI_CONTEXT_INDEX.json e o Excel de status. Peça sempre diagnóstico objetivo, preservando anti-leakage e separando pesquisa de aprovação.')
+    para(doc, 'Leia este DOCX, depois 09_ROADMAP_STATUS_REPORT_LATEST.json, 99_AI_CONTEXT_INDEX_LATEST.json e o Excel de status. Peça sempre diagnóstico objetivo, preservando anti-leakage e separando pesquisa de aprovação.')
     heading(doc, '7. Excel Operacional')
     para(doc, 'O Excel agora é o painel humano detalhado do projeto. Ele possui abas por módulo Python, ativos/séries, coleta, features, labels, datasets, walk-forward, backtest, stress, registry, parâmetros e melhorias sugeridas.')
     heading(doc, '8. Coerência Dos JSONs')
@@ -562,13 +562,13 @@ def build_xlsx(report):
 
 
 def update_ai_index(report):
-    path = BASE_JSON_DIR/'ARCHANGEL_AI_CONTEXT_INDEX.json'
+    path = BASE_JSON_DIR/'99_AI_CONTEXT_INDEX_LATEST.json'
     if not path.is_file(): return
-    idx = load_json('ARCHANGEL_AI_CONTEXT_INDEX.json')
+    idx = load_json('99_AI_CONTEXT_INDEX_LATEST.json')
     idx.setdefault('summary', {})['roadmap_status_verdict'] = report['summary']['verdict']
     idx['summary']['roadmap_status_generated_at_utc'] = report['system']['generated_at_utc']
     order = idx.setdefault('ai_reading_order', [])
-    if 'ROADMAP_STATUS_REPORT_LATEST.json' not in order: order.insert(1, 'ROADMAP_STATUS_REPORT_LATEST.json')
+    if '09_ROADMAP_STATUS_REPORT_LATEST.json' not in order: order.insert(1, '09_ROADMAP_STATUS_REPORT_LATEST.json')
     write_json(path, idx)
 
 

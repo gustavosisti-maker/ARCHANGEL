@@ -90,7 +90,7 @@ BASE_DATA_DIR = str(PROJECT_ROOT / "2_BASES")
 RULES_DIR = PROJECT_ROOT / "0_REGRAS_MANDATO"
 BASE_JSON_DIR = RULES_DIR / "BASE_JSON"
 
-SCRIPT_NAME = "2_BUSCA_DADOS.py"
+SCRIPT_NAME = "02_BUSCA_DADOS.py"
 SYSTEM_NAME = "ARCHANGEL"
 SYSTEM_VERSION = "v1"
 RUN_STATE_SCHEMA_VERSION = "ARCHANGEL_RUN_STATE_1.0"
@@ -866,10 +866,10 @@ class PathManager:
         )
 
     def catalog_path(self) -> Path:
-        return BASE_JSON_DIR / "CATALOGO_ARCHANGEL_SERIES.json"
+        return BASE_JSON_DIR / "01_CATALOGO_SERIES_LATEST.json"
 
     def run_state_path(self) -> Path:
-        return BASE_JSON_DIR / "RUN_STATE.json"
+        return BASE_JSON_DIR / "00_RUN_STATE_LATEST.json"
 
     def diagnostics_path(self) -> Path:
         return self.diagnostics / f"DIAGNOSTICO_{datetime.now().strftime('%Y%m%d_%H%M%S')}.parquet"
@@ -2199,7 +2199,7 @@ class ArchangelCryptoDataEngine:
                 ),
                 "ai_inventory": (
                     "Inventário completo separado. Use MAPA_ATIVOS.py para gerar "
-                    f"{PROJECT_ROOT / '0_REGRAS_MANDATO' / 'BASE_JSON' / 'MAPA_ATIVOS.json'}"
+                    f"{PROJECT_ROOT / '0_REGRAS_MANDATO' / 'BASE_JSON' / '01_MAPA_ATIVOS_LATEST.json'}"
                 ),
             },
             "records": records_snapshot,
@@ -2237,7 +2237,7 @@ class ArchangelCryptoDataEngine:
         """
         logging.info(
             "[AI INVENTORY SKIP] Inventário completo desativado neste engine. "
-            "Execute MAPA_ATIVOS.py para gerar MAPA_ATIVOS.json."
+            "Execute MAPA_ATIVOS.py para gerar 01_MAPA_ATIVOS_LATEST.json."
         )
 
     # -------------------------------------------------------------------------
@@ -2335,7 +2335,7 @@ class ArchangelCryptoDataEngine:
         else:
             logging.info(
                 "[AI INVENTORY SKIP] Use MAPA_ATIVOS.py para gerar "
-                f"{PROJECT_ROOT / '0_REGRAS_MANDATO' / 'BASE_JSON' / 'MAPA_ATIVOS.json'}"
+                f"{PROJECT_ROOT / '0_REGRAS_MANDATO' / 'BASE_JSON' / '01_MAPA_ATIVOS_LATEST.json'}"
             )
 
         self._save_run_state()
