@@ -27,6 +27,8 @@ lightgbm
 xgboost
 catboost
 mlflow
+python-docx
+openpyxl
 
 # GPU/DL: instalar apenas se houver driver/CUDA compatível confirmado.
 # torch

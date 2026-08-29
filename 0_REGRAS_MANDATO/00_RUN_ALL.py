@@ -450,6 +450,31 @@ def salvar_ai_context_index() -> None:
     substituir_arquivo_windows_safe(tmp_path, index_path)
 
 
+def atualizar_roadmap_status() -> None:
+    script = BASE_DIR / "0_ATUALIZA_ROADMAP_STATUS.py"
+    if not script.is_file():
+        print(f"[ROADMAP] Script nao encontrado: {script}")
+        return
+    try:
+        processo = subprocess.run(
+            [resolver_python_executable(), str(script)],
+            cwd=str(BASE_DIR),
+            env=montar_env_python(),
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+        )
+        if processo.stdout:
+            print(processo.stdout)
+        if processo.returncode != 0:
+            print(f"[ROADMAP] Falha ao atualizar roadmap/status: returncode={processo.returncode}")
+            if processo.stderr:
+                print(processo.stderr)
+    except Exception as exc:
+        print(f"[ROADMAP] Falha ao atualizar roadmap/status: {exc}")
+
+
 def caminho_stage(stage: dict) -> Path:
     return BASE_DIR / stage["script"]
 
@@ -774,23 +799,27 @@ def main() -> int:
     if houve_erro:
         print("\n[FINALIZADO COM ERRO] Verifique o script marcado como ERRO acima.")
         salvar_run_all_report(inicio_geral, fim_geral, stages_selecionadas, resultados, "ERROR")
+        atualizar_roadmap_status()
         salvar_ai_context_index()
         return 1
 
     if len(resultados) < len(stages_selecionadas):
         print("\n[FINALIZADO PARCIALMENTE] Nem todos os scripts foram executados.")
         salvar_run_all_report(inicio_geral, fim_geral, stages_selecionadas, resultados, "PARTIAL")
+        atualizar_roadmap_status()
         salvar_ai_context_index()
         return 1
 
     if len(stages_selecionadas) < len(STAGES):
         print("\n[FINALIZADO COM SUCESSO] Etapas selecionadas executadas em sequência.")
         salvar_run_all_report(inicio_geral, fim_geral, stages_selecionadas, resultados, "OK_SELECTED")
+        atualizar_roadmap_status()
         salvar_ai_context_index()
         return 0
 
     print("\n[FINALIZADO COM SUCESSO] Todas as etapas foram executadas em sequência.")
     salvar_run_all_report(inicio_geral, fim_geral, stages_selecionadas, resultados, "OK_ALL")
+    atualizar_roadmap_status()
     salvar_ai_context_index()
     return 0
 
