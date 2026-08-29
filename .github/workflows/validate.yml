@@ -1,0 +1,54 @@
+name: Validate ARCHANGEL
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    name: Python smoke validation
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile Python scripts
+        shell: pwsh
+        run: |
+          python -m compileall -q 0_REGRAS_MANDATO
+
+      - name: Guard against heavy artifacts
+        shell: pwsh
+        run: |
+          $blocked = @(
+            "_PYTHON",
+            "_CACHE",
+            "2_BASES",
+            "3_FEATURES",
+            "4_LABELS",
+            "5_DATASETS_ML",
+            "6_EXPERIMENTS",
+            "7_BACKTEST_PORTFOLIO",
+            "8_EXPERIMENT_REGISTRY"
+          )
+          foreach ($path in $blocked) {
+            if (Test-Path $path) {
+              throw "Blocked generated/local directory is tracked: $path"
+            }
+          }
+
+      - name: Basic secret pattern scan
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Recurse -File -Include *.py,*.md,*.json,*.yml,*.yaml,*.cmd
+          $hits = $files | Select-String -Pattern "sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY|api[_-]?key\s*=\s*['""]|secret\s*=\s*['""]|password\s*=\s*['""]" -CaseSensitive
+          if ($hits) {
+            $hits | ForEach-Object { Write-Host $_ }
+            throw "Possible secret found in tracked files."
+          }

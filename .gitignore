@@ -1,0 +1,86 @@
+# Python runtime, caches and local environments
+_PYTHON/
+_CACHE/
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*secret*
+*SECRET*
+*token*
+*TOKEN*
+*senha*
+*SENHA*
+credentials*.json
+
+# ARCHANGEL generated data and heavy research artifacts
+2_BASES/
+3_FEATURES/
+4_LABELS/
+5_DATASETS_ML/
+6_EXPERIMENTS/
+7_BACKTEST_PORTFOLIO/
+8_EXPERIMENT_REGISTRY/
+
+# Generated JSON control plane: keep the directory, not the volatile outputs
+0_REGRAS_MANDATO/BASE_JSON/*
+!0_REGRAS_MANDATO/BASE_JSON/.gitkeep
+
+# Local backups, renders and generated spreadsheets
+0_REGRAS_MANDATO/_Bkp/
+0_REGRAS_MANDATO/_render_prompt_v3/
+0_REGRAS_MANDATO/BASE_EXCEL/
+
+# Large data/model formats
+*.parquet
+*.feather
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.sqlite
+*.db
+*.pkl
+*.pickle
+*.joblib
+*.npz
+*.npy
+*.pt
+*.pth
+*.onnx
+*.h5
+
+# Internal documents and media kept local unless deliberately approved
+*.docx
+*.doc
+*.pdf
+*.jpeg
+*.jpg
+*.png
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.old
+*_LATEST.tmp
+logs/
+_logs/
+
+# OS/editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store

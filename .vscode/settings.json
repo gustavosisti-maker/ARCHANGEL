@@ -1,0 +1,20 @@
+{
+  "python.defaultInterpreterPath": "D:\\1_ARCHANGEL\\_PYTHON\\Python314\\python.exe",
+  "python.terminal.activateEnvironment": false,
+  "window.zoomLevel": 3,
+  "editor.fontSize": 20,
+  "editor.lineHeight": 1.35,
+  "terminal.integrated.cwd": "D:\\1_ARCHANGEL",
+  "terminal.integrated.fontSize": 28,
+  "terminal.integrated.lineHeight": 1.35,
+  "terminal.integrated.env.windows": {
+    "ARCHANGEL_PYTHON_EXE": "D:\\1_ARCHANGEL\\_PYTHON\\Python314\\python.exe",
+    "CUPY_CACHE_DIR": "D:\\1_ARCHANGEL\\_CACHE\\cupy_kernel_cache",
+    "NUMBA_CACHE_DIR": "D:\\1_ARCHANGEL\\_CACHE\\numba_cache",
+    "PATH": "D:\\1_ARCHANGEL\\_PYTHON\\Python314\\Scripts;${env:PATH}",
+    "PYTHONUTF8": "1",
+    "PYTHONPATH": "D:\\1_ARCHANGEL\\0_REGRAS_MANDATO"
+  },
+  "files.encoding": "utf8",
+  "files.eol": "\n"
+}

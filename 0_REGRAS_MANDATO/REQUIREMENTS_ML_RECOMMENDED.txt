@@ -1,0 +1,33 @@
+# ARCHANGEL - dependencias recomendadas para ML/backtest/experimentos
+#
+# Estado observado em ARCHANGEL_MACHINE_PROFILE.json:
+# - CPU: 12 cores fisicos / 24 threads
+# - RAM: ~128 GB
+# - GPU NVIDIA detectada: ~6 GB VRAM, CUDA provavelmente disponivel
+# - Instalado no Python atual: numpy, pandas, pyarrow
+# - Ausente no Python atual: sklearn, scipy, numba, torch, polars, duckdb,
+#   lightgbm, xgboost, catboost, optuna
+#
+# Ordem conservadora de instalacao:
+# 1) habilitar ML tabular e registro de experimentos
+# 2) acelerar dados/backtests
+# 3) habilitar GPU/deep learning somente depois do walk-forward estar validado
+
+numpy
+pandas
+pyarrow
+scipy
+scikit-learn
+joblib
+duckdb
+polars
+numba
+optuna
+lightgbm
+xgboost
+catboost
+mlflow
+
+# GPU/DL: instalar apenas se houver driver/CUDA compatível confirmado.
+# torch
+# cupy-cuda12x

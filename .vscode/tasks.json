@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ARCHANGEL: run all",
+      "type": "shell",
+      "command": "D:\\1_ARCHANGEL\\_PYTHON\\Python314\\python.exe",
+      "args": [
+        "D:\\1_ARCHANGEL\\0_REGRAS_MANDATO\\00_RUN_ALL.py"
+      ],
+      "options": {
+        "cwd": "D:\\1_ARCHANGEL",
+        "env": {
+          "ARCHANGEL_PYTHON_EXE": "D:\\1_ARCHANGEL\\_PYTHON\\Python314\\python.exe",
+          "CUPY_CACHE_DIR": "D:\\1_ARCHANGEL\\_CACHE\\cupy_kernel_cache",
+          "NUMBA_CACHE_DIR": "D:\\1_ARCHANGEL\\_CACHE\\numba_cache",
+          "PATH": "D:\\1_ARCHANGEL\\_PYTHON\\Python314\\Scripts;${env:PATH}",
+          "PYTHONUTF8": "1",
+          "PYTHONPATH": "D:\\1_ARCHANGEL\\0_REGRAS_MANDATO"
+        }
+      },
+      "problemMatcher": []
+    }
+  ]
+}
